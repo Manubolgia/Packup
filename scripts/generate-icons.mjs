@@ -14,7 +14,7 @@ const source = join(root, 'assets', 'icon-source.svg');
 const markSource = join(root, 'assets', 'icon-mark.svg');
 const outDir = join(root, 'public', 'icons');
 
-const BACKGROUND = { r: 14, g: 165, b: 233, alpha: 1 }; // --color-brand-500
+const BACKGROUND = { r: 20, g: 23, b: 26, alpha: 1 }; // --color-main
 
 await mkdir(outDir, { recursive: true });
 

@@ -1,28 +1,39 @@
 @import 'tailwindcss';
 
-/* Design tokens. Theming is this block and nothing else. */
+/* Self-hosted (C1: no network at runtime, so no font CDN).
+   Space Grotesk = departure-board signage. JetBrains Mono = data. */
+@import '@fontsource/space-grotesk/400.css';
+@import '@fontsource/space-grotesk/500.css';
+@import '@fontsource/space-grotesk/700.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+
+/* Design tokens. Theming is this block and nothing else.
+   Three colours only: main ground, secondary ink, accent. Everything else is
+   an opacity step of one of them. No gradients, no border radius anywhere. */
 @theme {
-  --color-ink-50: #f8fafc;
-  --color-ink-100: #f1f5f9;
-  --color-ink-200: #e2e8f0;
-  --color-ink-300: #cbd5e1;
-  --color-ink-400: #94a3b8;
-  --color-ink-500: #64748b;
-  --color-ink-600: #475569;
-  --color-ink-700: #334155;
-  --color-ink-800: #1e293b;
-  --color-ink-900: #0f172a;
-  --color-ink-950: #020617;
+  --color-main: #14171a;
+  --color-main-raised: #1c2024;
+  --color-main-sunken: #0e1113;
+  --color-secondary: #f2f2f0;
+  --color-accent: #e8a317;
 
-  --color-brand-400: #38bdf8;
-  --color-brand-500: #0ea5e9;
-  --color-brand-600: #0284c7;
+  /* Status uses the accent and one derived red; never a fourth hue for chrome. */
+  --color-danger: #c2401f;
 
-  --color-warn: #f59e0b;
-  --color-danger: #ef4444;
-  --color-success: #10b981;
+  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
 
-  --radius-sheet: 1.5rem;
+  /* Square by decree. Overriding the scale means a stray `rounded-*` class
+     from muscle memory still renders square. */
+  --radius-none: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-full: 0px;
 }
 
 :root {
@@ -32,13 +43,22 @@
   --safe-bottom: max(env(safe-area-inset-bottom), 16px);
   --safe-left: max(env(safe-area-inset-left), 16px);
 
-  --app-bg: var(--color-ink-950);
-  --app-fg: var(--color-ink-100);
-  --app-surface: var(--color-ink-900);
-  --app-surface-raised: var(--color-ink-800);
-  --app-border: var(--color-ink-700);
-  --app-muted: var(--color-ink-400);
-  --app-accent: var(--color-brand-500);
+  --app-bg: var(--color-main);
+  --app-fg: var(--color-secondary);
+  --app-surface: var(--color-main-raised);
+  --app-sunken: var(--color-main-sunken);
+  --app-accent: var(--color-accent);
+  --app-danger: var(--color-danger);
+
+  /* Hairlines and muted text are the ink at reduced opacity, not new greys. */
+  --app-border: rgb(242 242 240 / 0.14);
+  --app-border-strong: rgb(242 242 240 / 0.28);
+  --app-muted: rgb(242 242 240 / 0.55);
+  --app-faint: rgb(242 242 240 / 0.32);
+
+  /* One duration and one curve for the whole app. */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur: 180ms;
 }
 
 html,
@@ -51,17 +71,26 @@ body {
   margin: 0;
   background: var(--app-bg);
   color: var(--app-fg);
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    'Helvetica Neue',
-    sans-serif;
+  font-family: var(--font-display);
+  font-feature-settings: 'ss01';
   -webkit-font-smoothing: antialiased;
   /* The app manages its own scroll regions; the page itself never bounces. */
   overscroll-behavior: none;
+}
+
+/* Signage voice: headings and labels are tracked-out uppercase. */
+.u-label {
+  font-family: var(--font-display);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+}
+
+/* Counts, dates, capacities — anything the eye scans as a column. */
+.u-data {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
 }
 
 /* Touch targets stay tappable without a visible tap flash (C5). */
@@ -69,6 +98,12 @@ button,
 [role='button'] {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+}
+
+/* Keyboard focus is a hard offset outline, never a glow. */
+:focus-visible {
+  outline: 2px solid var(--app-accent);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {

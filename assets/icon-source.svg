@@ -1,32 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#0ea5e9"/>
-      <stop offset="100%" stop-color="#0369a1"/>
-    </linearGradient>
-    <linearGradient id="shell" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#f8fafc"/>
-      <stop offset="100%" stop-color="#cbd5e1"/>
-    </linearGradient>
-  </defs>
+  <!-- Full-bleed app icon. Flat main-colour ground, no gradient, square
+       corners. The mark itself must stay identical to icon-mark.svg. -->
+  <rect width="1024" height="1024" fill="#14171A"/>
 
-  <rect width="1024" height="1024" fill="url(#bg)"/>
-
-  <!-- Suitcase mark, centred inside the 40% maskable safe zone -->
-  <g transform="translate(512 528)">
+  <g transform="translate(512 512)">
     <!-- handle -->
-    <path d="M -96 -224 a 96 96 0 0 1 192 0 v 44 h -52 v -44 a 44 44 0 0 0 -88 0 v 44 h -52 z"
-          fill="#0f172a" opacity="0.85"/>
+    <path d="M -118 -300 h 236 v 52 h -60 v -0 h -116 v 0 h -60 z" fill="#F2F2F0"/>
+    <path d="M -118 -300 h 52 v 60 h -52 z M 66 -300 h 52 v 60 h -52 z" fill="#F2F2F0"/>
     <!-- shell -->
-    <rect x="-232" y="-184" width="464" height="384" rx="60" fill="url(#shell)"/>
-    <rect x="-232" y="-184" width="464" height="384" rx="60" fill="none"
-          stroke="#0f172a" stroke-opacity="0.18" stroke-width="10"/>
+    <rect x="-260" y="-240" width="520" height="424" fill="#F2F2F0"/>
     <!-- latch strip -->
-    <rect x="-232" y="-44" width="464" height="40" fill="#0f172a" opacity="0.12"/>
+    <rect x="-260" y="-52" width="520" height="44" fill="#14171A"/>
     <!-- clasp -->
-    <rect x="-34" y="-58" width="68" height="68" rx="16" fill="#0ea5e9"/>
-    <!-- wheels -->
-    <circle cx="-140" cy="228" r="34" fill="#0f172a" opacity="0.85"/>
-    <circle cx="140" cy="228" r="34" fill="#0f172a" opacity="0.85"/>
+    <rect x="-40" y="-76" width="80" height="92" fill="#E8A317"/>
+    <!-- feet -->
+    <rect x="-196" y="184" width="72" height="36" fill="#F2F2F0"/>
+    <rect x="124" y="184" width="72" height="36" fill="#F2F2F0"/>
   </g>
 </svg>

@@ -34,8 +34,8 @@ export default defineConfig({
         scope: '.',
         display: 'standalone',
         orientation: 'portrait',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
+        theme_color: '#14171A',
+        background_color: '#14171A',
         categories: ['travel', 'utilities'],
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
