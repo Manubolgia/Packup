@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import type { Traveller } from '@/domain/types';
+import type { Container, ContainerKind, Traveller } from '@/domain/types';
 import { repo } from '@/data/repo';
 import { useContainers, useItems, useTravellers, useTrip } from '@/data/hooks';
-import { CONTAINER_CAPS } from '@/domain/rules';
 import { useUiStore } from '@/store/ui';
 import { platform } from '@/platform';
-import { IconChevronLeft, IconForKind, IconPlus } from '@/components/icons/Icon';
+import { IconChevronLeft, IconPlus } from '@/components/icons/Icon';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TravellerFormSheet, type TravellerFormValues } from '@/components/TravellerFormSheet';
-
-const KINDS = ['suitcase', 'bag', 'pouch', 'person'] as const;
+import { ContainerFormSheet, type ContainerFormValues } from '@/components/ContainerFormSheet';
+import { LuggagePanel } from '@/components/LuggagePanel';
 
 export function TripView() {
   const { tripId } = useParams();
@@ -22,11 +21,18 @@ export function TripView() {
 
   const selectedTravellerId = useUiStore((s) => s.selectedTravellerId);
   const selectTraveller = useUiStore((s) => s.selectTraveller);
+  const selectedContainerId = useUiStore((s) => s.selectedContainerId);
+  const selectContainer = useUiStore((s) => s.selectContainer);
   const pushToast = useUiStore((s) => s.pushToast);
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<Traveller | undefined>(undefined);
-  const [pendingDelete, setPendingDelete] = useState<Traveller | null>(null);
+  const [travellerFormOpen, setTravellerFormOpen] = useState(false);
+  const [editingTraveller, setEditingTraveller] = useState<Traveller | undefined>(undefined);
+  const [pendingTravellerDelete, setPendingTravellerDelete] = useState<Traveller | null>(null);
+
+  const [containerFormOpen, setContainerFormOpen] = useState(false);
+  const [editingContainer, setEditingContainer] = useState<Container | undefined>(undefined);
+  const [addKind, setAddKind] = useState<ContainerKind | undefined>(undefined);
+  const [pendingContainerDelete, setPendingContainerDelete] = useState<Container | null>(null);
 
   // Default to the first traveller, and recover if the selected one is deleted.
   useEffect(() => {
@@ -65,31 +71,119 @@ export function TripView() {
   const selected = travellers?.find((t) => t.id === selectedTravellerId);
   const myContainers = containers?.filter((c) => c.travellerId === selected?.id) ?? [];
   const usedColors = (travellers ?? [])
-    .filter((t) => t.id !== editing?.id)
+    .filter((t) => t.id !== editingTraveller?.id)
     .map((t) => t.accentColor);
 
   async function submitTraveller(values: TravellerFormValues) {
     if (!tripId) return;
-    if (editing) {
-      await repo.updateTraveller(editing.id, values);
+    if (editingTraveller) {
+      await repo.updateTraveller(editingTraveller.id, values);
       pushToast('Traveller updated');
     } else {
       const created = await repo.addTraveller(tripId, values);
       selectTraveller(created.id);
       pushToast(`${created.name} added`);
     }
-    setFormOpen(false);
-    setEditing(undefined);
+    setTravellerFormOpen(false);
+    setEditingTraveller(undefined);
     void platform.haptic('success');
   }
 
   async function confirmDeleteTraveller() {
-    if (!pendingDelete) return;
-    const name = pendingDelete.name;
-    await repo.deleteTraveller(pendingDelete.id);
-    setPendingDelete(null);
+    if (!pendingTravellerDelete) return;
+    const name = pendingTravellerDelete.name;
+    await repo.deleteTraveller(pendingTravellerDelete.id);
+    setPendingTravellerDelete(null);
     pushToast(`${name} removed — their items are back in the unpacked pile`);
   }
+
+  async function submitContainer(values: ContainerFormValues) {
+    if (!selected) return;
+    const parent = values.parentContainerId || undefined;
+
+    if (editingContainer) {
+      const result = await repo.updateContainer(editingContainer.id, {
+        subtype: values.subtype,
+        label: values.label,
+        colorHex: values.colorHex,
+        capacityUnits: values.capacityUnits,
+        parentContainerId: parent,
+      });
+      if (!result.ok) {
+        pushToast(result.message, { tone: 'error' });
+        return;
+      }
+      pushToast(`${values.label} updated`);
+    } else {
+      const result = await repo.addContainer(selected.id, {
+        kind: values.kind,
+        subtype: values.subtype,
+        label: values.label,
+        colorHex: values.colorHex,
+        capacityUnits: values.capacityUnits,
+        ...(parent ? { parentContainerId: parent } : {}),
+      });
+      // The repo is the authority on caps (C6) — the UI grey-out is a courtesy.
+      if (!result.ok) {
+        pushToast(result.message, { tone: 'error' });
+        return;
+      }
+      selectContainer(result.value.id);
+      pushToast(`${result.value.label} added`);
+    }
+
+    setContainerFormOpen(false);
+    setEditingContainer(undefined);
+    setAddKind(undefined);
+    void platform.haptic('success');
+  }
+
+  /**
+   * §3: deleting a container unassigns its items rather than deleting them, so
+   * undo only has to put the container back and re-point the items at it.
+   */
+  async function confirmDeleteContainer() {
+    if (!pendingContainerDelete) return;
+    const gone = pendingContainerDelete;
+    const orphanedItemIds = (items ?? [])
+      .filter((i) => i.containerId === gone.id)
+      .map((i) => i.id);
+    const nestedChildIds = (containers ?? [])
+      .filter((c) => c.parentContainerId === gone.id)
+      .map((c) => c.id);
+
+    await repo.deleteContainer(gone.id);
+    setPendingContainerDelete(null);
+    if (selectedContainerId === gone.id) selectContainer(null);
+
+    pushToast(`${gone.label} removed`, {
+      undo: () => {
+        void (async () => {
+          const restored = await repo.addContainer(gone.travellerId, {
+            kind: gone.kind,
+            subtype: gone.subtype,
+            label: gone.label,
+            colorHex: gone.colorHex,
+            slotIndex: gone.slotIndex,
+            capacityUnits: gone.capacityUnits,
+            ...(gone.parentContainerId ? { parentContainerId: gone.parentContainerId } : {}),
+          });
+          if (!restored.ok) {
+            pushToast(restored.message, { tone: 'error' });
+            return;
+          }
+          for (const itemId of orphanedItemIds) {
+            await repo.moveItem(itemId, restored.value.id);
+          }
+          for (const childId of nestedChildIds) {
+            await repo.updateContainer(childId, { parentContainerId: restored.value.id });
+          }
+        })();
+      },
+    });
+  }
+
+  const selectedContainer = myContainers.find((c) => c.id === selectedContainerId);
 
   return (
     <main
@@ -134,8 +228,8 @@ export function TripView() {
               aria-selected={active}
               onClick={() => selectTraveller(t.id)}
               onDoubleClick={() => {
-                setEditing(t);
-                setFormOpen(true);
+                setEditingTraveller(t);
+                setTravellerFormOpen(true);
               }}
               className={[
                 'flex min-h-11 shrink-0 items-center gap-2 border px-3',
@@ -157,8 +251,8 @@ export function TripView() {
         <button
           aria-label="Add traveller"
           onClick={() => {
-            setEditing(undefined);
-            setFormOpen(true);
+            setEditingTraveller(undefined);
+            setTravellerFormOpen(true);
           }}
           className="grid h-11 w-11 shrink-0 place-items-center border border-dashed border-[var(--app-border-strong)] text-[var(--app-muted)] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:text-[var(--app-fg)]"
         >
@@ -166,7 +260,6 @@ export function TripView() {
         </button>
       </div>
 
-      {/* 3D scene lands here in M4. */}
       {/* pb leaves room for a toast to appear without covering the last row. */}
       <section className="flex flex-1 flex-col overflow-y-auto pt-4 pb-20">
         {!selected ? (
@@ -177,8 +270,8 @@ export function TripView() {
             </p>
             <Button
               onClick={() => {
-                setEditing(undefined);
-                setFormOpen(true);
+                setEditingTraveller(undefined);
+                setTravellerFormOpen(true);
               }}
             >
               Add traveller
@@ -186,73 +279,107 @@ export function TripView() {
           </div>
         ) : (
           <>
-            <div className="grid aspect-[4/3] max-h-[45dvh] shrink-0 place-items-center border border-dashed border-[var(--app-border)]">
-              <p className="u-data px-4 text-center text-[0.6875rem] text-[var(--app-faint)]">
-                3D luggage view — milestone 4
+            <LuggagePanel
+              containers={myContainers}
+              items={items ?? []}
+              selectedContainerId={selectedContainerId}
+              onSelect={(id) => {
+                selectContainer(id === selectedContainerId ? null : id);
+                void platform.haptic('light');
+              }}
+              onAdd={(kind) => {
+                setEditingContainer(undefined);
+                setAddKind(kind);
+                setContainerFormOpen(true);
+              }}
+            />
+
+            {selectedContainer ? (
+              <div className="mt-4 flex gap-2 border-t border-[var(--app-border)] pt-4">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setEditingContainer(selectedContainer);
+                    setAddKind(undefined);
+                    setContainerFormOpen(true);
+                  }}
+                >
+                  Edit {selectedContainer.label}
+                </Button>
+                <Button variant="ghost" onClick={() => setPendingContainerDelete(selectedContainer)}>
+                  Remove
+                </Button>
+              </div>
+            ) : null}
+
+            <div className="mt-6 flex items-center justify-between gap-2 border-t border-[var(--app-border)] pt-4">
+              <p className="u-data text-[0.6875rem] text-[var(--app-faint)]">
+                {items?.length ?? 0} items · {myContainers.length} containers
               </p>
-            </div>
-
-            <dl className="mt-4 grid grid-cols-4 gap-2">
-              {KINDS.map((kind) => {
-                const count = myContainers.filter((c) => c.kind === kind).length;
-                return (
-                  <div
-                    key={kind}
-                    className="flex flex-col items-center gap-1.5 border border-[var(--app-border)] py-3"
-                  >
-                    <span className="text-[var(--app-muted)]">
-                      <IconForKind kind={kind} size={20} />
-                    </span>
-                    <dt className="sr-only-focusable">{kind}</dt>
-                    <dd className="u-data text-[0.6875rem] text-[var(--app-fg)]">
-                      {count}/{CONTAINER_CAPS[kind]}
-                    </dd>
-                  </div>
-                );
-              })}
-            </dl>
-
-            <p className="u-data mt-3 text-[0.6875rem] text-[var(--app-faint)]">
-              {items?.length ?? 0} items · {myContainers.length} containers for {selected.name}
-            </p>
-
-            <div className="mt-4 flex gap-2">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setEditing(selected);
-                  setFormOpen(true);
-                }}
-              >
-                Edit {selected.name}
-              </Button>
-              <Button variant="ghost" onClick={() => setPendingDelete(selected)}>
-                Remove
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setEditingTraveller(selected);
+                    setTravellerFormOpen(true);
+                  }}
+                >
+                  Edit {selected.name}
+                </Button>
+                <Button variant="ghost" onClick={() => setPendingTravellerDelete(selected)}>
+                  Remove
+                </Button>
+              </div>
             </div>
           </>
         )}
       </section>
 
       <TravellerFormSheet
-        open={formOpen}
-        traveller={editing}
+        open={travellerFormOpen}
+        traveller={editingTraveller}
         usedColors={usedColors}
         onSubmit={submitTraveller}
         onClose={() => {
-          setFormOpen(false);
-          setEditing(undefined);
+          setTravellerFormOpen(false);
+          setEditingTraveller(undefined);
         }}
       />
 
+      {selected ? (
+        <ContainerFormSheet
+          open={containerFormOpen}
+          container={editingContainer}
+          initialKind={addKind}
+          siblings={myContainers}
+          travellerId={selected.id}
+          onSubmit={submitContainer}
+          onClose={() => {
+            setContainerFormOpen(false);
+            setEditingContainer(undefined);
+            setAddKind(undefined);
+          }}
+        />
+      ) : null}
+
       <ConfirmDialog
-        open={pendingDelete !== null}
+        open={pendingTravellerDelete !== null}
         title="Remove traveller"
-        message={`${pendingDelete?.name}’s bags will be removed. Their items are kept and moved back to the unpacked pile.`}
+        message={`${pendingTravellerDelete?.name}’s bags will be removed. Their items are kept and moved back to the unpacked pile.`}
         confirmLabel="Remove"
         destructive
         onConfirm={confirmDeleteTraveller}
-        onCancel={() => setPendingDelete(null)}
+        onCancel={() => setPendingTravellerDelete(null)}
+      />
+
+      <ConfirmDialog
+        open={pendingContainerDelete !== null}
+        title="Remove luggage"
+        message={`${pendingContainerDelete?.label} will be removed. Anything inside it goes back to the unpacked pile — you can undo this.`}
+        confirmLabel="Remove"
+        destructive
+        onConfirm={confirmDeleteContainer}
+        onCancel={() => setPendingContainerDelete(null)}
       />
     </main>
   );

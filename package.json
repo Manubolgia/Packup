@@ -34,6 +34,10 @@
   "devDependencies": {
     "@eslint/js": "^9.38.0",
     "@tailwindcss/postcss": "^4.1.16",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.4",
     "@types/node": "^22.18.9",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
@@ -46,6 +50,7 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "fake-indexeddb": "^6.2.2",
     "globals": "^16.4.0",
+    "jsdom": "^30.0.1",
     "postcss": "^8.5.6",
     "prettier": "^3.6.2",
     "sharp": "^0.35.3",
