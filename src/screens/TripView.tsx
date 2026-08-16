@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import type { Container, ContainerKind, Traveller } from '@/domain/types';
+import type { Container, ContainerKind, Item, Traveller } from '@/domain/types';
 import { repo } from '@/data/repo';
 import { useContainers, useItems, useTravellers, useTrip } from '@/data/hooks';
+import { formatLocation, resolveLocation } from '@/domain/location';
 import { useUiStore } from '@/store/ui';
 import { platform } from '@/platform';
 import { IconChevronLeft, IconPlus } from '@/components/icons/Icon';
@@ -11,6 +12,10 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TravellerFormSheet, type TravellerFormValues } from '@/components/TravellerFormSheet';
 import { ContainerFormSheet, type ContainerFormValues } from '@/components/ContainerFormSheet';
 import { LuggageView } from '@/components/LuggageView';
+import { ContainerSheet } from '@/components/ContainerSheet';
+import { ContainerPicker } from '@/components/ContainerPicker';
+import { InventoryDrawer } from '@/components/InventoryDrawer';
+import type { AddItemValues } from '@/components/AddItemForm';
 
 export function TripView() {
   const { tripId } = useParams();
@@ -24,6 +29,12 @@ export function TripView() {
   const selectedContainerId = useUiStore((s) => s.selectedContainerId);
   const selectContainer = useUiStore((s) => s.selectContainer);
   const highlightedContainerId = useUiStore((s) => s.highlightedContainerId);
+  const locatedLabel = useUiStore((s) => s.locatedLabel);
+  const locateItem = useUiStore((s) => s.locateItem);
+  const drawerOpen = useUiStore((s) => s.drawerOpen);
+  const setDrawerOpen = useUiStore((s) => s.setDrawerOpen);
+  const drawerHeight = useUiStore((s) => s.drawerHeight);
+  const setDrawerHeight = useUiStore((s) => s.setDrawerHeight);
   const pushToast = useUiStore((s) => s.pushToast);
 
   const [travellerFormOpen, setTravellerFormOpen] = useState(false);
@@ -34,6 +45,10 @@ export function TripView() {
   const [editingContainer, setEditingContainer] = useState<Container | undefined>(undefined);
   const [addKind, setAddKind] = useState<ContainerKind | undefined>(undefined);
   const [pendingContainerDelete, setPendingContainerDelete] = useState<Container | null>(null);
+
+  const [containerSheetOpen, setContainerSheetOpen] = useState(false);
+  /** Items awaiting a destination: one from "move to…", many from multi-select. */
+  const [movingItems, setMovingItems] = useState<readonly Item[]>([]);
 
   // Default to the first traveller, and recover if the selected one is deleted.
   useEffect(() => {
@@ -186,6 +201,80 @@ export function TripView() {
 
   const selectedContainer = myContainers.find((c) => c.id === selectedContainerId);
 
+  async function addItemToContainer(values: AddItemValues) {
+    if (!tripId || !selectedContainer) return;
+    await repo.addItem(tripId, {
+      name: values.name,
+      category: values.category,
+      size: values.size,
+      quantity: values.quantity,
+      essential: values.essential,
+      containerId: selectedContainer.id,
+    });
+    void platform.haptic('light');
+  }
+
+  async function toggleItemPacked(item: Item) {
+    await repo.setPacked(item.id, !item.packed);
+    void platform.haptic(item.packed ? 'light' : 'success');
+  }
+
+  async function changeItemQuantity(item: Item, quantity: number) {
+    if (quantity < 1) return;
+    await repo.updateItem(item.id, { quantity });
+  }
+
+  /**
+   * §4.3: tap an item → the drawer collapses, the camera frames its container,
+   * the container pulses, the breadcrumb shows, and one haptic tick fires.
+   */
+  function locate(item: Item) {
+    const crumbs = resolveLocation(item, {
+      containers: containers ?? [],
+      travellers: travellers ?? [],
+    });
+
+    if (!item.containerId) {
+      // Unassigned: there is nothing to fly to, so offer to place it instead.
+      setMovingItems([item]);
+      return;
+    }
+
+    // The item may belong to another traveller; switch tabs so the scene
+    // actually contains the container we are about to frame.
+    const owner = (containers ?? []).find((c) => c.id === item.containerId);
+    if (owner && owner.travellerId !== selectedTravellerId) {
+      selectTraveller(owner.travellerId);
+    }
+
+    locateItem(item.containerId, formatLocation(crumbs.slice(1).reverse(), ' → '));
+    void platform.haptic('light');
+  }
+
+  async function commitMove(containerId: string | null) {
+    const moving = movingItems;
+    setMovingItems([]);
+    if (moving.length === 0) return;
+
+    for (const item of moving) {
+      const result = await repo.moveItem(item.id, containerId);
+      if (!result.ok) {
+        pushToast(result.message, { tone: 'error' });
+        return;
+      }
+    }
+
+    const destination = containerId
+      ? ((containers ?? []).find((c) => c.id === containerId)?.label ?? 'container')
+      : 'the unpacked pile';
+    pushToast(
+      moving.length === 1
+        ? `${moving[0]!.name} moved to ${destination}`
+        : `${moving.length} items moved to ${destination}`,
+    );
+    void platform.haptic('success');
+  }
+
   return (
     <main
       className="flex h-full flex-col overflow-hidden"
@@ -261,8 +350,8 @@ export function TripView() {
         </button>
       </div>
 
-      {/* pb leaves room for a toast to appear without covering the last row. */}
-      <section className="flex flex-1 flex-col overflow-y-auto pt-4 pb-20">
+      {/* pb clears the fixed drawer handle and leaves room for a toast. */}
+      <section className="flex flex-1 flex-col overflow-y-auto pt-4 pb-28">
         {!selected ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
             <h2 className="u-label text-sm">No travellers yet</h2>
@@ -280,41 +369,41 @@ export function TripView() {
           </div>
         ) : (
           <>
-            <LuggageView
-              containers={myContainers}
-              items={items ?? []}
-              accentColor={selected.accentColor}
-              selectedContainerId={selectedContainerId}
-              highlightedContainerId={highlightedContainerId}
-              onSelect={(id) => {
-                selectContainer(id === selectedContainerId ? null : id);
-                if (id) void platform.haptic('light');
-              }}
-              onAdd={(kind) => {
-                setEditingContainer(undefined);
-                setAddKind(kind);
-                setContainerFormOpen(true);
-              }}
-            />
+            <div className="relative">
+              <LuggageView
+                containers={myContainers}
+                items={items ?? []}
+                accentColor={selected.accentColor}
+                selectedContainerId={selectedContainerId}
+                highlightedContainerId={highlightedContainerId}
+                onSelect={(id) => {
+                  selectContainer(id);
+                  if (id) {
+                    setContainerSheetOpen(true);
+                    void platform.haptic('light');
+                  }
+                }}
+                onAdd={(kind) => {
+                  setEditingContainer(undefined);
+                  setAddKind(kind);
+                  setContainerFormOpen(true);
+                }}
+              />
 
-            {selectedContainer ? (
-              <div className="mt-4 flex gap-2 border-t border-[var(--app-border)] pt-4">
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setEditingContainer(selectedContainer);
-                    setAddKind(undefined);
-                    setContainerFormOpen(true);
-                  }}
+              {/* §4.3 step 4: the breadcrumb floats over the canvas while the
+                  located container pulses. */}
+              {locatedLabel ? (
+                <p
+                  role="status"
+                  className="u-data pointer-events-none absolute inset-x-2 top-2 border border-[var(--app-accent)] bg-[var(--app-bg)] px-2 py-1.5 text-center text-[0.625rem] text-[var(--app-fg)]"
                 >
-                  Edit {selectedContainer.label}
-                </Button>
-                <Button variant="ghost" onClick={() => setPendingContainerDelete(selectedContainer)}>
-                  Remove
-                </Button>
-              </div>
-            ) : null}
+                  {locatedLabel}
+                </p>
+              ) : null}
+            </div>
 
+            {/* Container edit/remove live in the container sheet; this row is
+                the traveller's own actions. */}
             <div className="mt-6 flex items-center justify-between gap-2 border-t border-[var(--app-border)] pt-4">
               <p className="u-data text-[0.6875rem] text-[var(--app-faint)]">
                 {items?.length ?? 0} items · {myContainers.length} containers
@@ -383,6 +472,54 @@ export function TripView() {
         destructive
         onConfirm={confirmDeleteContainer}
         onCancel={() => setPendingContainerDelete(null)}
+      />
+
+      <ContainerSheet
+        open={containerSheetOpen && selectedContainer !== undefined}
+        container={selectedContainer}
+        containers={containers ?? []}
+        travellers={travellers ?? []}
+        items={items ?? []}
+        onClose={() => setContainerSheetOpen(false)}
+        onAddItem={addItemToContainer}
+        onTogglePacked={toggleItemPacked}
+        onQuantityChange={changeItemQuantity}
+        onMoveItem={(item) => setMovingItems([item])}
+        onSelectContainer={(id) => selectContainer(id)}
+        onEdit={(container) => {
+          setContainerSheetOpen(false);
+          setEditingContainer(container);
+          setAddKind(undefined);
+          setContainerFormOpen(true);
+        }}
+        onDelete={(container) => {
+          setContainerSheetOpen(false);
+          setPendingContainerDelete(container);
+        }}
+      />
+
+      <ContainerPicker
+        open={movingItems.length > 0}
+        title={movingItems.length > 1 ? `Move ${movingItems.length} items to…` : 'Move to…'}
+        containers={containers ?? []}
+        travellers={travellers ?? []}
+        excludeId={movingItems.length === 1 ? (movingItems[0]!.containerId ?? undefined) : undefined}
+        onPick={commitMove}
+        onClose={() => setMovingItems([])}
+      />
+
+      <InventoryDrawer
+        open={drawerOpen}
+        height={drawerHeight}
+        items={items ?? []}
+        containers={containers ?? []}
+        travellers={travellers ?? []}
+        selectedContainerId={selectedContainerId}
+        onToggle={() => setDrawerOpen(!drawerOpen)}
+        onSetHeight={setDrawerHeight}
+        onLocate={locate}
+        onTogglePacked={toggleItemPacked}
+        onMove={(selection) => setMovingItems(selection)}
       />
     </main>
   );

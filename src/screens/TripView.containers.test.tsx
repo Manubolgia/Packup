@@ -147,8 +147,10 @@ describe('editing and deleting', () => {
     });
     if (!added.ok) throw new Error('setup failed');
 
+    // Tapping a card opens its container sheet; Edit lives in that sheet.
     await userEvent.click(await findCard('Old name'));
-    await userEvent.click(await screen.findByRole('button', { name: /edit old name/i }));
+    const containerSheet = await screen.findByRole('dialog', { name: /old name/i });
+    await userEvent.click(within(containerSheet).getByRole('button', { name: /^edit$/i }));
 
     const sheet = await screen.findByRole('dialog', { name: /edit luggage/i });
     const label = within(sheet).getByLabelText(/label/i);
@@ -185,15 +187,12 @@ describe('editing and deleting', () => {
       containerId: added.value.id,
     });
 
+    // Tapping a card opens its container sheet; Remove lives in that sheet and
+    // then raises the confirm dialog.
     await userEvent.click(await findCard('Canvas tote'));
-    // Two bare "Remove" buttons exist once the sheet opens (page + dialog), so
-    // each click is scoped to the region it belongs to.
-    const page = screen.getByRole('main');
-    await userEvent.click(
-      within(page)
-        .getAllByRole('button', { name: /^remove$/i })
-        .find((b) => !b.closest('[role="dialog"]'))!,
-    );
+    const containerSheet = await screen.findByRole('dialog', { name: /canvas tote/i });
+    await userEvent.click(within(containerSheet).getByRole('button', { name: /^remove$/i }));
+
     const confirm = await screen.findByRole('dialog', { name: /remove luggage/i });
     await userEvent.click(within(confirm).getByRole('button', { name: /^remove$/i }));
 

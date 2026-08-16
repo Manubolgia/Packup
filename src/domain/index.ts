@@ -4,3 +4,4 @@ export * from './rules';
 export * from './volume';
 export * from './location';
 export * from './catalog';
+export * from './presets';

@@ -17,6 +17,8 @@ interface UiState {
   selectedTravellerId: UUID | null;
   selectedContainerId: UUID | null;
   highlightedContainerId: UUID | null;
+  /** Breadcrumb floated over the canvas while a located item is highlighted. */
+  locatedLabel: string | null;
   drawerOpen: boolean;
   drawerHeight: 'collapsed' | 'half' | 'full';
   toasts: Toast[];
@@ -24,6 +26,8 @@ interface UiState {
   selectTraveller: (id: UUID | null) => void;
   selectContainer: (id: UUID | null) => void;
   highlightContainer: (id: UUID | null) => void;
+  /** §4.3: highlight a container and show its path for ~1.5s, then clear. */
+  locateItem: (containerId: UUID, label: string) => void;
   setDrawerOpen: (open: boolean) => void;
   setDrawerHeight: (height: UiState['drawerHeight']) => void;
   pushToast: (message: string, options?: { tone?: Toast['tone']; undo?: () => void }) => number;
@@ -32,10 +36,15 @@ interface UiState {
 
 let toastSeq = 0;
 
+/** §4.3: the outline pulses for ~1.5s, then the scene returns to rest. */
+const HIGHLIGHT_MS = 1500;
+let highlightTimer: ReturnType<typeof setTimeout> | undefined;
+
 export const useUiStore = create<UiState>((set) => ({
   selectedTravellerId: null,
   selectedContainerId: null,
   highlightedContainerId: null,
+  locatedLabel: null,
   drawerOpen: false,
   drawerHeight: 'half',
   toasts: [],
@@ -43,6 +52,21 @@ export const useUiStore = create<UiState>((set) => ({
   selectTraveller: (id) => set({ selectedTravellerId: id, selectedContainerId: null }),
   selectContainer: (id) => set({ selectedContainerId: id }),
   highlightContainer: (id) => set({ highlightedContainerId: id }),
+
+  locateItem: (containerId, label) => {
+    // Selecting drives the camera; highlighting drives the pulse. A repeated
+    // tap restarts the timer rather than stacking timers.
+    clearTimeout(highlightTimer);
+    set({
+      selectedContainerId: containerId,
+      highlightedContainerId: containerId,
+      locatedLabel: label,
+      drawerHeight: 'collapsed',
+    });
+    highlightTimer = setTimeout(() => {
+      set({ highlightedContainerId: null, locatedLabel: null });
+    }, HIGHLIGHT_MS);
+  },
   setDrawerOpen: (open) => set({ drawerOpen: open }),
   setDrawerHeight: (height) => set({ drawerHeight: height }),
 
