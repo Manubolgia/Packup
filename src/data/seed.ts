@@ -61,7 +61,9 @@ export async function seedSampleTrip(repo: Repo = new DexieRepo()): Promise<Trip
     kind: 'suitcase',
     subtype: 'hardshell-large',
     label: 'Big black Samsonite',
-    colorHex: '#14171A',
+    // Charcoal rather than the page background: a true black shell is
+    // indistinguishable from a hole in the 3D ground plane.
+    colorHex: '#2B3138',
   });
   await add('daypack', me.id, {
     kind: 'bag',

@@ -67,12 +67,16 @@ export const KIND_PLURAL: Record<ContainerKind, string> = {
   person: 'person',
 };
 
-/** Muted, luggage-plausible palette. Deliberately not the traveller accents. */
+/**
+ * Muted, luggage-plausible palette. Deliberately not the traveller accents.
+ * The mid-grey leads because it is the default: the near-black reads as a hole
+ * against the 3D ground plane, so it is a choice, never the fallback.
+ */
 export const CONTAINER_COLORS = [
-  '#2B3138',
   '#8A8F96',
-  '#E8A317',
-  '#C2401F',
-  '#5F7A61',
   '#4A6FA5',
+  '#5F7A61',
+  '#C2401F',
+  '#E8A317',
+  '#2B3138',
 ] as const;

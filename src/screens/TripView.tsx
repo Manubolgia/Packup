@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TravellerFormSheet, type TravellerFormValues } from '@/components/TravellerFormSheet';
 import { ContainerFormSheet, type ContainerFormValues } from '@/components/ContainerFormSheet';
-import { LuggagePanel } from '@/components/LuggagePanel';
+import { LuggageView } from '@/components/LuggageView';
 
 export function TripView() {
   const { tripId } = useParams();
@@ -23,6 +23,7 @@ export function TripView() {
   const selectTraveller = useUiStore((s) => s.selectTraveller);
   const selectedContainerId = useUiStore((s) => s.selectedContainerId);
   const selectContainer = useUiStore((s) => s.selectContainer);
+  const highlightedContainerId = useUiStore((s) => s.highlightedContainerId);
   const pushToast = useUiStore((s) => s.pushToast);
 
   const [travellerFormOpen, setTravellerFormOpen] = useState(false);
@@ -279,13 +280,15 @@ export function TripView() {
           </div>
         ) : (
           <>
-            <LuggagePanel
+            <LuggageView
               containers={myContainers}
               items={items ?? []}
+              accentColor={selected.accentColor}
               selectedContainerId={selectedContainerId}
+              highlightedContainerId={highlightedContainerId}
               onSelect={(id) => {
                 selectContainer(id === selectedContainerId ? null : id);
-                void platform.haptic('light');
+                if (id) void platform.haptic('light');
               }}
               onAdd={(kind) => {
                 setEditingContainer(undefined);
