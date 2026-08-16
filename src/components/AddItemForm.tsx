@@ -88,7 +88,14 @@ export function AddItemForm({ tripItems, onAdd }: AddItemFormProps) {
           {suggestions.map((s) => (
             <li key={`${s.name}-${s.category}`}>
               <button
-                onClick={() => submit({ name: s.name, category: s.category, size: s.size, essential: s.essential ?? false })}
+                onClick={() =>
+                  submit({
+                    name: s.name,
+                    category: s.category,
+                    size: s.size,
+                    essential: s.essential ?? false,
+                  })
+                }
                 className="u-data border border-[var(--app-border)] px-2 py-1 text-[0.625rem] text-[var(--app-muted)] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:border-[var(--app-border-strong)] hover:text-[var(--app-fg)]"
               >
                 {s.name}

@@ -263,7 +263,9 @@ export function ContainerFormSheet({
                   ].join(' ')}
                   style={{ background: color }}
                 >
-                  {selected ? <IconCheck size={18} style={{ color: 'var(--color-secondary)' }} /> : null}
+                  {selected ? (
+                    <IconCheck size={18} style={{ color: 'var(--color-secondary)' }} />
+                  ) : null}
                 </button>
               );
             })}

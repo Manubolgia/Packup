@@ -59,7 +59,11 @@ export function SuitcaseShape({ container, material }: ShapeProps) {
         </>
       ) : (
         // A duffel gets a carry strap instead of wheels and a handle.
-        <mesh position={[0, height * 0.95, 0]} rotation={[Math.PI / 2, 0, 0]} material={trimMaterial()}>
+        <mesh
+          position={[0, height * 0.95, 0]}
+          rotation={[Math.PI / 2, 0, 0]}
+          material={trimMaterial()}
+        >
           <torusGeometry args={[hx * 0.42, 0.022, 6, 16, Math.PI]} />
         </mesh>
       )}
@@ -84,7 +88,11 @@ export function BagShape({ container, material }: ShapeProps) {
       />
       {tote || flat ? (
         // Tote/laptop bag: a rigid handle arc over the opening.
-        <mesh position={[0, height + 0.07, 0]} rotation={[Math.PI / 2, 0, 0]} material={trimMaterial()}>
+        <mesh
+          position={[0, height + 0.07, 0]}
+          rotation={[Math.PI / 2, 0, 0]}
+          material={trimMaterial()}
+        >
           <torusGeometry args={[0.12, 0.018, 6, 16, Math.PI]} />
         </mesh>
       ) : (
@@ -108,7 +116,12 @@ export function PouchShape({ material }: ShapeProps) {
   const [hx, hy, hz] = KIND_SIZE.pouch;
   return (
     <group>
-      <RoundedBox args={[hx * 2, hy * 2, hz * 2]} radius={0.05} smoothness={2} material={material} />
+      <RoundedBox
+        args={[hx * 2, hy * 2, hz * 2]}
+        radius={0.05}
+        smoothness={2}
+        material={material}
+      />
       {/* Zip line: a thin stretched box across the top face. */}
       <mesh position={[0, hy * 0.72, 0]} material={trimMaterial()}>
         <boxGeometry args={[hx * 1.85, 0.012, hz * 0.28]} />

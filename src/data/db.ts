@@ -33,9 +33,12 @@ export class PackupDb extends Dexie {
       .upgrade(async (tx) => {
         const trips = await tx.table<Trip>('trips').toArray();
         const createdByTrip = new Map(trips.map((t) => [t.id, t.createdAt]));
-        await tx.table<Traveller>('travellers').toCollection().modify((traveller) => {
-          traveller.createdAt ??= createdByTrip.get(traveller.tripId) ?? Date.now();
-        });
+        await tx
+          .table<Traveller>('travellers')
+          .toCollection()
+          .modify((traveller) => {
+            traveller.createdAt ??= createdByTrip.get(traveller.tripId) ?? Date.now();
+          });
       });
   }
 }

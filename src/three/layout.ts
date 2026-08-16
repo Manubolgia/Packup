@@ -85,7 +85,11 @@ export function placeContainers(containers: readonly Container[]): PlacedContain
   const placed: PlacedContainer[] = [];
   for (const container of containers) {
     if (container.parentContainerId) continue;
-    placed.push({ container, position: slotPosition(container.kind, container.slotIndex), nested: false });
+    placed.push({
+      container,
+      position: slotPosition(container.kind, container.slotIndex),
+      nested: false,
+    });
 
     const children = (byParent.get(container.id) ?? []).sort((a, b) => a.slotIndex - b.slotIndex);
     children.forEach((child, i) => {

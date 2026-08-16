@@ -93,7 +93,12 @@ export function ContainerNode({
     >
       <ContainerShape container={container} material={material} />
 
-      <mesh ref={outlineRef} geometry={outlineGeometry} material={outlineMaterial} visible={false} />
+      <mesh
+        ref={outlineRef}
+        geometry={outlineGeometry}
+        material={outlineMaterial}
+        visible={false}
+      />
 
       {/* Selected: translucent shell reveals stacked volume blocks inside. */}
       {selected && blocks > 0 ? (

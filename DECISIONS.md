@@ -155,3 +155,107 @@ case. The same applies to detaching a nested pouch, hence the explicit
 amber/red fill states — a headline feature — were invisible on first run. The
 toiletry bag is given `capacityUnits: 8` against 9 units of contents. Verified
 by computing the real fill ratios rather than assuming them.
+
+---
+
+## M3
+
+### D17 — `domain/catalog.ts` holds the subtype list
+
+**Why:** the add-luggage picker (M3) and the 3D geometry switch (M4) both need
+"which subtypes belong to which kind". Keeping one exported list means they
+cannot disagree — adding a subtype in one place cannot leave the other rendering
+a fallback shape.
+
+### D18 — Capacity is held as text while editing
+
+**Found:** clamping `Math.max(1, Number(value))` on every keystroke rewrote an
+emptied field to `1`, so typing `55` after clearing produced `155`.
+**Decided:** the input holds a raw string; the clamp runs on blur and on submit.
+Caught by a component test, not by reading the code.
+
+### D19 — `ContainerCard` survives M4 as the WebGL fallback
+
+**Why:** C8 requires a fully usable list-only app. Rather than writing a second
+list for the fallback, M3's card is the fallback — so the two paths cannot drift
+in what they expose.
+
+## M4
+
+### D20 — Empty slots are ground footprints, not wireframe boxes
+
+**Spec §5:** "faint dashed outlines".
+**Found:** rendered as wireframe boxes they read _louder_ than the real luggage,
+inverting the visual hierarchy — visible in the first screenshot.
+**Decided:** flat, dim footprints on the ground plane. Same affordance, correct
+weight.
+
+### D21 — Ground plane is a canvas-generated radial gradient
+
+**Why:** a flat plane large enough not to clip shows a hard edge cutting across
+the frame; one small enough to avoid that dwarfs nothing and looks like a slab.
+A gradient fading to the page background at the rim has neither problem. Drawn
+into a 256px canvas at runtime, so it is still zero fetched assets (C4).
+
+### D22 — Camera framing uses the object's diagonal
+
+**Found:** framing on the tallest axis zoomed so close the container overflowed
+the canvas — a suitcase viewed at an angle presents roughly its diagonal.
+**Decided:** `Math.hypot(...halfExtents) * 5.5`, floored at 2.6.
+
+### D23 — Seed's "Big black Samsonite" is charcoal, not black
+
+**Found:** it was `#14171A`, the exact page background, so in 3D it rendered as
+a hole in the ground plane rather than as a suitcase.
+**Decided:** `#2B3138`. The near-black stays available in the picker but is no
+longer the default — the mid-grey leads.
+
+## M5
+
+### D24 — Drawer groups are ordered by `containersForTraveller`
+
+**Found:** groups followed Dexie's insertion order, so a nested pouch could be
+listed above its own parent.
+**Decided:** reuse the existing `containersForTraveller` helper, which already
+returns parents before their children, per traveller.
+
+### D25 — Container edit/remove moved into the container sheet
+
+**Why:** M3 put them on the trip screen because there was nowhere else. Once
+§4.2's container sheet exists, having both is two ways to do one thing. The
+sheet owns them; the trip screen keeps only the traveller's own actions.
+
+## M6
+
+### D26 — `Traveller.createdAt` added, with a Dexie v2 migration
+
+**Found:** `where({tripId})` returns rows in primary-key order — i.e. by random
+UUID — so the traveller tab strip and the trip-card avatars **reshuffled between
+loads**. Visible across probe runs.
+**Decided:** add `createdAt` and sort every traveller read by it. The v2 upgrade
+backfills existing rows from their trip's `createdAt`, so installed copies do
+not reorder on upgrade. Backup import falls back to file order for backups
+written before the field existed.
+
+### D27 — `useTrip` returns `null` for "not found"
+
+**Found:** `useLiveQuery` reports both "still loading" and "found nothing" as
+`undefined`, so opening a deleted or mistyped trip id hung on "Loading…"
+forever.
+**Decided:** `useTrip` resolves to `null` when the row is absent, so the screen
+can tell the two apart and render "Trip not found".
+
+## M7
+
+### D28 — M7 deferred and documented instead of implemented
+
+**Spec §9 M7:** Capacitor wrap, verified `npx cap run android` and `ios`.
+**Decided (with the user):** build through M6 and ship as an installable PWA;
+document M7's remaining work in [NATIVE.md](NATIVE.md) rather than commit
+unverified native configuration.
+**Why:** `cap run android` needs the Android SDK and `cap run ios` needs macOS
+
+- Xcode, neither available here. Writing config that cannot be run would mean
+  claiming a build works without observing it. Everything M7 depends on — the
+  `Platform` abstraction, native detection, SW-skip, `base:'./'`, hash routing —
+  is already in place, so M7 remains configuration rather than surgery.

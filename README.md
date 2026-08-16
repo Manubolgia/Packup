@@ -7,16 +7,29 @@ No backend, no accounts, no network calls — all data lives on your device.
 
 ## Status
 
-**M2 complete.** Trips and travellers are fully editable and persist offline;
-the 3D luggage view (M4), items and the drawer (M5) are still to come. See
-`PLAN.md` for the roadmap and `DECISIONS.md` for deviations from the spec.
+**M0–M6 complete.** The app is feature-complete as an installable PWA: trips,
+travellers, luggage, a 3D scene, items and the inventory drawer all work
+offline. M7 (the Capacitor native wrap) is deferred and specified in
+[NATIVE.md](NATIVE.md). See `PLAN.md` for the roadmap and `DECISIONS.md` for
+deviations from the spec.
 
-| Milestone             | State                                          |
-| --------------------- | ---------------------------------------------- |
-| M0 skeleton           | done — installable, offline, CI green          |
-| M1 domain + data      | done — rules, volume, Dexie repo, backup, seed |
-| M2 trips & travellers | done — CRUD, duplicate, archive, export/import |
-| M3–M7                 | not started                                    |
+| Milestone             | State                                               |
+| --------------------- | --------------------------------------------------- |
+| M0 skeleton           | done — installable, offline, CI green               |
+| M1 domain + data      | done — rules, volume, Dexie repo, backup, seed      |
+| M2 trips & travellers | done — CRUD, duplicate, archive, export/import      |
+| M3 containers         | done — luggage CRUD, caps enforced, nesting         |
+| M4 3D scene           | done — procedural geometry, framing, WebGL fallback |
+| M5 items & drawer     | done — item CRUD, search/filters, tap-to-locate     |
+| M6 PWA polish         | done — a11y 100, perf 96, offline verified          |
+| M7 native wrap        | not started — see [NATIVE.md](NATIVE.md)            |
+
+### Measured
+
+Lighthouse mobile against the production build: **performance 96,
+accessibility 100, best-practices 100, SEO 100**. Offline verified in headless
+Chrome — 18 precached entries, app reloads and renders with the network
+disabled, data intact in IndexedDB. 103 tests passing.
 
 ## Design
 

@@ -62,9 +62,10 @@ describe('adding luggage', () => {
 
     expect(await findCard('Big black Samsonite')).toBeInTheDocument();
     // The card states its fill against the hardshell-large default of 120.
-    expect(
-      screen.getByRole('progressbar', { name: /big black samsonite fill/i }),
-    ).toHaveAttribute('aria-valuemax', '120');
+    expect(screen.getByRole('progressbar', { name: /big black samsonite fill/i })).toHaveAttribute(
+      'aria-valuemax',
+      '120',
+    );
   });
 
   it('opens on the kind whose slot was tapped', async () => {

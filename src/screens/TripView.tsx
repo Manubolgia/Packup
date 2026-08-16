@@ -162,9 +162,7 @@ export function TripView() {
   async function confirmDeleteContainer() {
     if (!pendingContainerDelete) return;
     const gone = pendingContainerDelete;
-    const orphanedItemIds = (items ?? [])
-      .filter((i) => i.containerId === gone.id)
-      .map((i) => i.id);
+    const orphanedItemIds = (items ?? []).filter((i) => i.containerId === gone.id).map((i) => i.id);
     const nestedChildIds = (containers ?? [])
       .filter((c) => c.parentContainerId === gone.id)
       .map((c) => c.id);
@@ -514,7 +512,9 @@ export function TripView() {
         title={movingItems.length > 1 ? `Move ${movingItems.length} items to…` : 'Move to…'}
         containers={containers ?? []}
         travellers={travellers ?? []}
-        excludeId={movingItems.length === 1 ? (movingItems[0]!.containerId ?? undefined) : undefined}
+        excludeId={
+          movingItems.length === 1 ? (movingItems[0]!.containerId ?? undefined) : undefined
+        }
         onPick={commitMove}
         onClose={() => setMovingItems([])}
       />
