@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Packup!</title>
+    <script>
+      // Belt-and-braces (spec §6). Hash routing means Pages should never serve
+      // this, but a stray deep link lands here — bounce it to the app root,
+      // preserving any path as a hash route.
+      (function () {
+        var base = location.pathname.replace(/\/[^/]*$/, '/');
+        location.replace(base + (location.hash || '#/'));
+      })();
+    </script>
+    <meta http-equiv="refresh" content="0; url=./" />
+  </head>
+  <body>
+    <p>Redirecting to <a href="./">Packup</a>…</p>
+  </body>
+</html>

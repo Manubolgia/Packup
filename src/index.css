@@ -1,0 +1,96 @@
+@import 'tailwindcss';
+
+/* Design tokens. Theming is this block and nothing else. */
+@theme {
+  --color-ink-50: #f8fafc;
+  --color-ink-100: #f1f5f9;
+  --color-ink-200: #e2e8f0;
+  --color-ink-300: #cbd5e1;
+  --color-ink-400: #94a3b8;
+  --color-ink-500: #64748b;
+  --color-ink-600: #475569;
+  --color-ink-700: #334155;
+  --color-ink-800: #1e293b;
+  --color-ink-900: #0f172a;
+  --color-ink-950: #020617;
+
+  --color-brand-400: #38bdf8;
+  --color-brand-500: #0ea5e9;
+  --color-brand-600: #0284c7;
+
+  --color-warn: #f59e0b;
+  --color-danger: #ef4444;
+  --color-success: #10b981;
+
+  --radius-sheet: 1.5rem;
+}
+
+:root {
+  /* Safe-area insets, floored at 16px so no UI ever sits at a screen edge (C7). */
+  --safe-top: max(env(safe-area-inset-top), 16px);
+  --safe-right: max(env(safe-area-inset-right), 16px);
+  --safe-bottom: max(env(safe-area-inset-bottom), 16px);
+  --safe-left: max(env(safe-area-inset-left), 16px);
+
+  --app-bg: var(--color-ink-950);
+  --app-fg: var(--color-ink-100);
+  --app-surface: var(--color-ink-900);
+  --app-surface-raised: var(--color-ink-800);
+  --app-border: var(--color-ink-700);
+  --app-muted: var(--color-ink-400);
+  --app-accent: var(--color-brand-500);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--app-bg);
+  color: var(--app-fg);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  /* The app manages its own scroll regions; the page itself never bounces. */
+  overscroll-behavior: none;
+}
+
+/* Touch targets stay tappable without a visible tap flash (C5). */
+button,
+[role='button'] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Visually hidden but focusable — the a11y mirror of the 3D scene (§5). */
+.sr-only-focusable:not(:focus):not(:focus-within) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border-width: 0;
+}

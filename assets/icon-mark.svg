@@ -1,0 +1,27 @@
+<!-- Suitcase mark on a transparent ground, for maskable icons and splash art.
+     Keep in sync with icon-source.svg. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="shell" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+  </defs>
+
+  <g transform="translate(512 542)">
+    <!-- handle -->
+    <path d="M -136 -318 a 136 136 0 0 1 272 0 v 62 h -74 v -62 a 62 62 0 0 0 -124 0 v 62 h -74 z"
+          fill="#0f172a" opacity="0.85"/>
+    <!-- shell -->
+    <rect x="-329" y="-261" width="658" height="545" rx="85" fill="url(#shell)"/>
+    <rect x="-329" y="-261" width="658" height="545" rx="85" fill="none"
+          stroke="#0f172a" stroke-opacity="0.18" stroke-width="14"/>
+    <!-- latch strip -->
+    <rect x="-329" y="-62" width="658" height="57" fill="#0f172a" opacity="0.12"/>
+    <!-- clasp -->
+    <rect x="-48" y="-82" width="96" height="96" rx="23" fill="#0ea5e9"/>
+    <!-- wheels -->
+    <circle cx="-199" cy="324" r="48" fill="#0f172a" opacity="0.85"/>
+    <circle cx="199" cy="324" r="48" fill="#0f172a" opacity="0.85"/>
+  </g>
+</svg>
