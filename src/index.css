@@ -1,19 +1,15 @@
 @import 'tailwindcss';
 
-/* Self-hosted (C1: no network at runtime, so no font CDN).
-   Space Grotesk = departure-board signage. JetBrains Mono = data. */
-@import '@fontsource/space-grotesk/400.css';
-@import '@fontsource/space-grotesk/500.css';
-@import '@fontsource/space-grotesk/700.css';
-@import '@fontsource/jetbrains-mono/400.css';
-@import '@fontsource/jetbrains-mono/500.css';
+/* Fonts are imported from main.tsx, not here: @fontsource stylesheets
+   reference their woff2 files as url(./files/…), and Vite resolves those
+   relative to the importing CSS file — from here that path does not exist. */
 
 /* Design tokens. Theming is this block and nothing else.
    Three colours only: main ground, secondary ink, accent. Everything else is
    an opacity step of one of them. No gradients, no border radius anywhere. */
 @theme {
   --color-main: #14171a;
-  --color-main-raised: #1c2024;
+  --color-main-raised: #1f2429;
   --color-main-sunken: #0e1113;
   --color-secondary: #f2f2f0;
   --color-accent: #e8a317;
@@ -104,6 +100,27 @@ button,
 :focus-visible {
   outline: 2px solid var(--app-accent);
   outline-offset: 2px;
+}
+
+/* Motion vocabulary: things arrive from where they live, and never bounce. */
+@keyframes sheet-rise {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes row-in {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

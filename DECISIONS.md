@@ -93,3 +93,65 @@ config the spec's "ESLint + Prettier, run in CI" requires), `autoprefixer`,
 `postcss`, `@types/*`.
 
 No runtime dependency outside spec §2 has been added.
+
+---
+
+## M1
+
+### D11 — Visual direction: three flat colours, square corners, no emoji
+
+**Spec:** silent on visual style beyond "design tokens as CSS variables".
+**Direction given:** one main, one secondary, one accent; no gradients, no
+border radius, no emoji; line-only technical icons; terminal/signage
+typography; restrained transitions.
+**Implemented as:** `--color-main #14171A`, `--color-secondary #F2F2F0`,
+`--color-accent #E8A317`, plus a single derived `--color-danger #C2401F` for
+destructive actions and the over-capacity state — a status colour, not a fourth
+brand hue. Every `--radius-*` token is overridden to `0px`, so a stray
+`rounded-*` class still renders square. Greys are the ink at reduced opacity
+rather than new values. One duration (`--dur`) and one curve (`--ease`).
+**Consequence:** the M0 icon SVGs were redrawn without gradients or `rx`, and
+the 🧳 emoji, all `rounded-*` classes and the `✕`/`⋯` text glyphs were replaced.
+
+### D12 — Self-hosted Space Grotesk + JetBrains Mono
+
+**Why:** C1 forbids runtime network calls, so a font CDN is not an option.
+`@fontsource` packages ship the woff2 files into the bundle. Latin subsets only
+(`latin-400.css` etc.): the full packages add Vietnamese and Cyrillic faces the
+UI never renders, and all of them would be precached for offline — 17 font
+files versus 5.
+**Gotcha worth recording:** these stylesheets must be imported from `main.tsx`,
+not `@import`-ed from `index.css`. They reference their files as
+`url(./files/…)`, which Vite resolves relative to the _importing_ stylesheet;
+from `src/index.css` that path does not exist and every font 404s at runtime
+while the build still succeeds.
+
+### D13 — `ProgressRing` is a square `ProgressBar`
+
+**Spec §M2:** lists a `ProgressRing` primitive.
+**Deviation:** it is a bar. A ring is a circle, and the agreed direction has no
+round geometry. Same information, same props.
+
+### D14 — `Platform` gained `saveTextFile` / `pickTextFile`
+
+**Why:** M2 requires export/import as JSON files. Without this the Trips screen
+would have to build an `<a download>` itself, which is exactly the
+platform-specific code §7 exists to contain — and the native implementation
+(Filesystem + Share) differs completely. Added to the interface so M7 is a swap,
+not surgery.
+
+### D15 — `setArchived` instead of `updateTrip({archivedAt})`
+
+**Why:** un-archiving must _remove_ the key, and Dexie's `update` cannot express
+that — writing `undefined` under `exactOptionalPropertyTypes` is a type error,
+and writing `0` would leave a falsy timestamp that lies to any future
+`archivedAt`-based query. `setArchived` uses `modify` + `delete` for the false
+case. The same applies to detaching a nested pouch, hence the explicit
+`ContainerPatch` type.
+
+### D16 — Sample trip overrides one container's capacity
+
+**Why:** with default capacities nothing in the seed exceeded 100%, so the
+amber/red fill states — a headline feature — were invisible on first run. The
+toiletry bag is given `capacityUnits: 8` against 9 units of contents. Verified
+by computing the real fill ratios rather than assuming them.

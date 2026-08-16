@@ -113,6 +113,20 @@ describe('container caps are enforced by the API, not just the UI (C6)', () => {
   });
 });
 
+describe('archiving', () => {
+  it('sets a timestamp, and unarchiving removes the key entirely', async () => {
+    const trip = await repo.createTrip({ name: 'Test trip' });
+
+    await repo.setArchived(trip.id, true);
+    const archived = await db.trips.get(trip.id);
+    expect(typeof archived?.archivedAt).toBe('number');
+
+    await repo.setArchived(trip.id, false);
+    const active = await db.trips.get(trip.id);
+    expect(active && 'archivedAt' in active).toBe(false);
+  });
+});
+
 describe('cascade semantics', () => {
   it('deleting a container unassigns its items rather than deleting them', async () => {
     const { trip, traveller } = await tripWithTraveller();

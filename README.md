@@ -7,9 +7,24 @@ No backend, no accounts, no network calls — all data lives on your device.
 
 ## Status
 
-**M0 — skeleton.** Build, PWA shell, CI and icons are in place; the Trips screen
-is a placeholder. See `PLAN.md` for the roadmap and `DECISIONS.md` for
-deviations from the spec.
+**M2 complete.** Trips and travellers are fully editable and persist offline;
+the 3D luggage view (M4), items and the drawer (M5) are still to come. See
+`PLAN.md` for the roadmap and `DECISIONS.md` for deviations from the spec.
+
+| Milestone             | State                                          |
+| --------------------- | ---------------------------------------------- |
+| M0 skeleton           | done — installable, offline, CI green          |
+| M1 domain + data      | done — rules, volume, Dexie repo, backup, seed |
+| M2 trips & travellers | done — CRUD, duplicate, archive, export/import |
+| M3–M7                 | not started                                    |
+
+## Design
+
+One main colour, one secondary, one accent — `#14171A` / `#F2F2F0` / `#E8A317`,
+plus a single derived red for destructive and over-capacity states. No
+gradients, no rounded corners, no emoji: icons are line-only SVGs on a 24-unit
+grid with a 1.5 stroke, drawn like a parts diagram. Space Grotesk for signage,
+JetBrains Mono for data, both self-hosted. All of it lives in `src/index.css`.
 
 ## Requirements
 

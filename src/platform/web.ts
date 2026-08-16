@@ -83,4 +83,47 @@ export const webPlatform: Platform = {
       input.click();
     });
   },
+
+  async saveTextFile(filename, text, mimeType = 'application/json') {
+    const url = URL.createObjectURL(new Blob([text], { type: mimeType }));
+    try {
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      anchor.style.display = 'none';
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+    } finally {
+      // Revoking immediately can abort the download in some browsers.
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    }
+  },
+
+  pickTextFile(accept = 'application/json,.json') {
+    return new Promise<string | null>((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = accept;
+      input.style.display = 'none';
+
+      let settled = false;
+      const finish = (value: string | null) => {
+        if (settled) return;
+        settled = true;
+        input.remove();
+        resolve(value);
+      };
+
+      input.addEventListener('change', () => {
+        const file = input.files?.[0];
+        if (!file) return finish(null);
+        file.text().then(finish, () => finish(null));
+      });
+      input.addEventListener('cancel', () => finish(null));
+
+      document.body.append(input);
+      input.click();
+    });
+  },
 };

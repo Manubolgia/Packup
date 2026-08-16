@@ -115,7 +115,10 @@ export function IconChevronLeft(props: IconProps) {
 export function IconMore(props: IconProps) {
   return (
     <Svg {...props}>
-      <path d="M5 12h.01M12 12h.01M19 12h.01" strokeLinecap="round" strokeWidth={2.25} />
+      {/* Filled squares: a 3-dot glyph drawn with square caps renders too faint. */}
+      <rect x="4" y="11" width="2" height="2" fill="currentColor" stroke="none" />
+      <rect x="11" y="11" width="2" height="2" fill="currentColor" stroke="none" />
+      <rect x="18" y="11" width="2" height="2" fill="currentColor" stroke="none" />
     </Svg>
   );
 }

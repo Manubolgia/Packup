@@ -21,9 +21,12 @@ interface SeedItem {
 }
 
 export async function seedSampleTrip(repo: Repo = new DexieRepo()): Promise<Trip> {
+  // 12–26 October, of whichever year keeps the trip in the future, so the
+  // sample never shows dates that contradict its own name.
   const today = new Date();
-  const start = new Date(today.getTime() + 21 * 86_400_000);
-  const end = new Date(start.getTime() + 13 * 86_400_000);
+  const year = today.getMonth() > 9 ? today.getFullYear() + 1 : today.getFullYear();
+  const start = new Date(Date.UTC(year, 9, 12));
+  const end = new Date(Date.UTC(year, 9, 26));
   const iso = (d: Date) => d.toISOString().slice(0, 10);
 
   const trip = await repo.createTrip({

@@ -19,7 +19,9 @@ export default defineConfig({
       injectRegister: 'auto',
       includeAssets: ['icons/apple-touch-icon-180.png', 'favicon.ico'],
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest}'],
+        // woff2 included: fonts are self-hosted, so offline must precache them
+        // or the app renders in a fallback face in airplane mode.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webmanifest,woff2}'],
         // three.js pushes the precache past the 2 MiB default.
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         navigateFallback: 'index.html',

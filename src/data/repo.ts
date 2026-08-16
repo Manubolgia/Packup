@@ -50,6 +50,14 @@ export interface ContainerInput {
   parentContainerId?: UUID;
 }
 
+/**
+ * `parentContainerId: undefined` is meaningful here — it detaches a nested
+ * pouch — so it must be explicitly allowed under exactOptionalPropertyTypes.
+ */
+export type ContainerPatch = Partial<Omit<ContainerInput, 'kind' | 'parentContainerId'>> & {
+  parentContainerId?: UUID | undefined;
+};
+
 export interface ItemInput {
   name: string;
   category: string;
@@ -70,7 +78,8 @@ export interface Repo {
   listTrips(): Promise<Trip[]>;
   getTrip(id: UUID): Promise<Trip | undefined>;
   createTrip(input: TripInput): Promise<Trip>;
-  updateTrip(id: UUID, patch: Partial<TripInput> & { archivedAt?: number }): Promise<void>;
+  updateTrip(id: UUID, patch: Partial<TripInput>): Promise<void>;
+  setArchived(id: UUID, archived: boolean): Promise<void>;
   deleteTrip(id: UUID): Promise<void>;
   duplicateTrip(id: UUID, name?: string): Promise<Result<Trip>>;
 
@@ -81,7 +90,7 @@ export interface Repo {
 
   listContainers(tripId: UUID): Promise<Container[]>;
   addContainer(travellerId: UUID, input: ContainerInput): Promise<Result<Container>>;
-  updateContainer(id: UUID, patch: Partial<Omit<ContainerInput, 'kind'>>): Promise<Result<null>>;
+  updateContainer(id: UUID, patch: ContainerPatch): Promise<Result<null>>;
   deleteContainer(id: UUID): Promise<void>;
 
   listItems(tripId: UUID): Promise<Item[]>;
@@ -127,8 +136,21 @@ export class DexieRepo implements Repo {
     return trip;
   }
 
-  async updateTrip(id: UUID, patch: Partial<TripInput> & { archivedAt?: number }): Promise<void> {
+  async updateTrip(id: UUID, patch: Partial<TripInput>): Promise<void> {
     await this.database.trips.update(id, { ...patch, updatedAt: this.deps.now() });
+  }
+
+  /** Archiving is a distinct operation because unarchiving must remove the key. */
+  async setArchived(id: UUID, archived: boolean): Promise<void> {
+    const now = this.deps.now();
+    if (archived) {
+      await this.database.trips.update(id, { archivedAt: now, updatedAt: now });
+      return;
+    }
+    await this.database.trips.where({ id }).modify((trip) => {
+      delete trip.archivedAt;
+      trip.updatedAt = now;
+    });
   }
 
   async deleteTrip(id: UUID): Promise<void> {
@@ -296,10 +318,7 @@ export class DexieRepo implements Repo {
     );
   }
 
-  async updateContainer(
-    id: UUID,
-    patch: Partial<Omit<ContainerInput, 'kind'>>,
-  ): Promise<Result<null>> {
+  async updateContainer(id: UUID, patch: ContainerPatch): Promise<Result<null>> {
     const { containers } = this.database;
     return this.database.transaction(
       'rw',

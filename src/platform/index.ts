@@ -9,6 +9,10 @@ export interface Platform {
   haptic(kind: 'light' | 'success' | 'warning'): Promise<void>;
   share(payload: { title: string; text: string; files?: Blob[] }): Promise<void>;
   pickPhoto(): Promise<string | null>; // downscaled data URL, or null if cancelled
+  /** Hands the user a file. On native this becomes Filesystem + Share (M7). */
+  saveTextFile(filename: string, text: string, mimeType?: string): Promise<void>;
+  /** Reads a user-chosen text file, or null if the picker was dismissed. */
+  pickTextFile(accept?: string): Promise<string | null>;
   isNative: boolean;
 }
 

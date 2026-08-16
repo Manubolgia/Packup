@@ -19,11 +19,11 @@ export function ErrorBoundary() {
         paddingLeft: 'var(--safe-left)',
       }}
     >
-      <h1 className="text-xl font-semibold">Packup hit a snag</h1>
+      <h1 className="u-label text-base">Packup hit a snag</h1>
       <p className="max-w-sm text-sm text-[var(--app-muted)]">{message}</p>
       <Link
         to="/"
-        className="rounded-full bg-[var(--app-accent)] px-5 py-3 text-sm font-medium text-white"
+        className="u-label inline-flex min-h-11 items-center bg-[var(--app-accent)] px-5 text-xs text-[var(--color-main)]"
       >
         Back to trips
       </Link>
