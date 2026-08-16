@@ -8,6 +8,7 @@ const marta: Traveller = {
   name: 'Marta',
   accentColor: '#E8A317',
   isSelf: false,
+  createdAt: 0,
 };
 
 const suitcase: Container = {

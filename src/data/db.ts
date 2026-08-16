@@ -24,6 +24,19 @@ export class PackupDb extends Dexie {
       containers: 'id, travellerId, parentContainerId, [travellerId+kind]',
       items: 'id, tripId, containerId, packed, essential, [tripId+containerId], [tripId+packed]',
     });
+
+    // v2 adds traveller.createdAt so the tab strip has a stable order. Rows
+    // written by v1 have no such field; they are backfilled from the trip's own
+    // creation time, which keeps existing installs from reordering on upgrade.
+    this.version(2)
+      .stores({ travellers: 'id, tripId, [tripId+createdAt], [tripId+isSelf]' })
+      .upgrade(async (tx) => {
+        const trips = await tx.table<Trip>('trips').toArray();
+        const createdByTrip = new Map(trips.map((t) => [t.id, t.createdAt]));
+        await tx.table<Traveller>('travellers').toCollection().modify((traveller) => {
+          traveller.createdAt ??= createdByTrip.get(traveller.tripId) ?? Date.now();
+        });
+      });
   }
 }
 

@@ -60,7 +60,8 @@ export function TripView() {
     }
   }, [travellers, selectedTravellerId, selectTraveller]);
 
-  if (trip === undefined && tripId) {
+  // undefined = still querying; null = queried and absent (see useTrip).
+  if (trip === undefined) {
     return (
       <main className="grid h-full place-items-center p-6">
         <p className="u-data text-xs text-[var(--app-faint)]">Loading…</p>
@@ -400,6 +401,16 @@ export function TripView() {
                   {locatedLabel}
                 </p>
               ) : null}
+
+              {/* §5 accessibility: selection is announced, since the visual
+                  cue (a highlighted mesh) is invisible to a screen reader. */}
+              <p aria-live="polite" className="sr-only-focusable">
+                {selectedContainer
+                  ? `${selectedContainer.label} selected, ${
+                      (items ?? []).filter((i) => i.containerId === selectedContainer.id).length
+                    } items`
+                  : ''}
+              </p>
             </div>
 
             {/* Container edit/remove live in the container sheet; this row is

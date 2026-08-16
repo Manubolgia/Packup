@@ -225,8 +225,9 @@ export class DexieRepo implements Repo {
 
   // ---- travellers ----
 
+  /** Ordered by creation: the tab strip must not reshuffle between loads. */
   listTravellers(tripId: UUID): Promise<Traveller[]> {
-    return this.database.travellers.where({ tripId }).toArray();
+    return this.database.travellers.where({ tripId }).sortBy('createdAt');
   }
 
   async addTraveller(tripId: UUID, input: TravellerInput): Promise<Traveller> {
@@ -236,6 +237,7 @@ export class DexieRepo implements Repo {
       name: input.name.trim() || 'Traveller',
       accentColor: input.accentColor,
       isSelf: input.isSelf ?? false,
+      createdAt: this.deps.now(),
     };
     await this.database.travellers.add(traveller);
     await this.touchTrip(tripId);

@@ -118,8 +118,15 @@ export async function importTrip(
     };
     await trips.add(trip);
 
-    for (const t of backup.travellers) {
-      await travellers.add({ ...t, id: remap(t.id), tripId: trip.id });
+    for (const [index, t] of backup.travellers.entries()) {
+      await travellers.add({
+        ...t,
+        id: remap(t.id),
+        tripId: trip.id,
+        // Backups written before traveller.createdAt existed carry no value;
+        // fall back to the file's own order so tabs keep their arrangement.
+        createdAt: t.createdAt ?? now + index,
+      });
     }
 
     for (const c of backup.containers) remap(c.id);

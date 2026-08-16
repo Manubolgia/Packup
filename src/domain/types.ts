@@ -17,6 +17,9 @@ export interface Traveller {
   name: string; // "Me", "Marta", "Kid"
   accentColor: string; // hex, used in 3D + list
   isSelf: boolean;
+  // Tab order. Without it, Dexie returns travellers in primary-key order —
+  // i.e. by random UUID — so the tab strip reshuffles between loads.
+  createdAt: number;
 }
 
 export type ContainerKind = 'suitcase' | 'bag' | 'pouch' | 'person';

@@ -14,13 +14,22 @@ export function useTrips(): Trip[] | undefined {
   return useLiveQuery(() => db.trips.orderBy('updatedAt').reverse().toArray(), []);
 }
 
-export function useTrip(tripId: UUID | undefined): Trip | undefined {
-  return useLiveQuery(async () => (tripId ? db.trips.get(tripId) : undefined), [tripId]);
+/**
+ * `undefined` while the query is in flight, `null` once it has run and found
+ * nothing. Without that distinction a deleted or mistyped trip id leaves the
+ * screen on "Loading…" forever, since useLiveQuery reports both as undefined.
+ */
+export function useTrip(tripId: UUID | undefined): Trip | null | undefined {
+  return useLiveQuery(
+    async () => (tripId ? ((await db.trips.get(tripId)) ?? null) : null),
+    [tripId],
+  );
 }
 
+/** Ordered by creation, so the traveller tab strip has a stable order. */
 export function useTravellers(tripId: UUID | undefined): Traveller[] | undefined {
   return useLiveQuery(
-    async () => (tripId ? db.travellers.where({ tripId }).toArray() : []),
+    async () => (tripId ? db.travellers.where({ tripId }).sortBy('createdAt') : []),
     [tripId],
   );
 }
@@ -65,6 +74,8 @@ export function useTravellersByTrip(): Map<UUID, Traveller[]> | undefined {
       list.push(t);
       map.set(t.tripId, list);
     });
+    // Same stable order as the tab strip, so the avatars do not reshuffle.
+    for (const list of map.values()) list.sort((a, b) => a.createdAt - b.createdAt);
     return map;
   }, []);
 }
