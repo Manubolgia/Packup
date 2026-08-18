@@ -156,9 +156,17 @@ describe('accessibility contract', () => {
     );
 
     const tablist = await screen.findByRole('tablist', { name: /travellers/i });
+    // Both queries settle independently, so wait for the strip to be complete
+    // rather than asserting on whichever commit findByRole happened to catch.
+    await waitFor(() =>
+      expect(within(tablist).getAllByRole('tab').map((t) => t.textContent)).toEqual([
+        'Me',
+        'Marta',
+      ]),
+    );
+    // Exactly one tab is selected at a time, from the very first paint.
     const tabs = within(tablist).getAllByRole('tab');
-    expect(tabs.map((t) => t.textContent)).toEqual(['Me', 'Marta']);
-    // Exactly one tab is selected at a time.
     expect(tabs.filter((t) => t.getAttribute('aria-selected') === 'true')).toHaveLength(1);
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
   });
 });

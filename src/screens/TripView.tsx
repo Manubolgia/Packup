@@ -52,15 +52,24 @@ export function TripView() {
   /** Items awaiting a destination: one from "move to…", many from multi-select. */
   const [movingItems, setMovingItems] = useState<readonly Item[]>([]);
 
-  // Default to the first traveller, and recover if the selected one is deleted.
+  /**
+   * The effective traveller, resolved during render rather than in an effect.
+   * An effect runs a commit after the tabs first paint, so deriving the
+   * fallback there let the strip render one frame with no tab selected — a
+   * real flash, and a test race. This also recovers when the selected
+   * traveller is deleted.
+   */
+  const selected =
+    travellers?.find((t) => t.id === selectedTravellerId) ??
+    travellers?.find((t) => t.isSelf) ??
+    travellers?.[0];
+
+  // Writes that derived default back to the store, so the rest of the app
+  // (and the next visit) agrees with what the tab strip already shows.
   useEffect(() => {
-    if (!travellers || travellers.length === 0) return;
-    const stillExists = travellers.some((t) => t.id === selectedTravellerId);
-    if (!stillExists) {
-      const self = travellers.find((t) => t.isSelf) ?? travellers[0]!;
-      selectTraveller(self.id);
-    }
-  }, [travellers, selectedTravellerId, selectTraveller]);
+    if (!selected || selected.id === selectedTravellerId) return;
+    selectTraveller(selected.id);
+  }, [selected, selectedTravellerId, selectTraveller]);
 
   // undefined = still querying; null = queried and absent (see useTrip).
   if (trip === undefined) {
@@ -87,7 +96,6 @@ export function TripView() {
     );
   }
 
-  const selected = travellers?.find((t) => t.id === selectedTravellerId);
   const myContainers = containers?.filter((c) => c.travellerId === selected?.id) ?? [];
   const usedColors = (travellers ?? [])
     .filter((t) => t.id !== editingTraveller?.id)
@@ -336,7 +344,9 @@ export function TripView() {
           className="flex min-w-0 flex-1 gap-2 overflow-x-auto"
         >
           {(travellers ?? []).map((t) => {
-            const active = t.id === selectedTravellerId;
+            // Against the derived selection, so exactly one tab is marked
+            // selected on the very first paint.
+            const active = t.id === selected?.id;
             return (
               <button
                 key={t.id}
