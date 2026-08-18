@@ -159,10 +159,11 @@ describe('accessibility contract', () => {
     // Both queries settle independently, so wait for the strip to be complete
     // rather than asserting on whichever commit findByRole happened to catch.
     await waitFor(() =>
-      expect(within(tablist).getAllByRole('tab').map((t) => t.textContent)).toEqual([
-        'Me',
-        'Marta',
-      ]),
+      expect(
+        within(tablist)
+          .getAllByRole('tab')
+          .map((t) => t.textContent),
+      ).toEqual(['Me', 'Marta']),
     );
     // Exactly one tab is selected at a time, from the very first paint.
     const tabs = within(tablist).getAllByRole('tab');
