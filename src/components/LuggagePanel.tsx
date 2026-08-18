@@ -50,7 +50,6 @@ export function LuggagePanel({
                 <ContainerCard
                   key={container.id}
                   container={container}
-                  containers={containers}
                   items={items}
                   children={containers.filter((c) => c.parentContainerId === container.id)}
                   selected={container.id === selectedContainerId}

@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Item, ItemSize } from '@/domain/types';
 import { ITEM_CATEGORIES, suggestItems, type ItemPreset } from '@/domain/presets';
-import { SIZE_UNITS } from '@/domain/volume';
 import { Button } from './ui/Button';
 import { Input } from './ui/Field';
 
@@ -99,7 +98,6 @@ export function AddItemForm({ tripItems, onAdd }: AddItemFormProps) {
                 className="u-data border border-[var(--app-border)] px-2 py-1 text-[0.625rem] text-[var(--app-muted)] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:border-[var(--app-border-strong)] hover:text-[var(--app-fg)]"
               >
                 {s.name}
-                <span className="ml-1.5 text-[var(--app-faint)]">{SIZE_UNITS[s.size]}u</span>
               </button>
             </li>
           ))}
@@ -107,48 +105,76 @@ export function AddItemForm({ tripItems, onAdd }: AddItemFormProps) {
       ) : null}
 
       {expanded ? (
-        <div className="flex flex-col gap-2 border-t border-[var(--app-border)] pt-2">
-          <div className="flex flex-wrap gap-1.5">
-            {SIZES.map((s) => (
-              <button
-                key={s}
-                onClick={() => setSize(s)}
-                aria-pressed={size === s}
-                className={[
-                  'u-label border px-2 py-1.5 text-[0.5rem]',
-                  size === s
-                    ? 'border-[var(--app-fg)] text-[var(--app-fg)]'
-                    : 'border-[var(--app-border)] text-[var(--app-muted)]',
-                ].join(' ')}
-              >
-                {s} · {SIZE_UNITS[s]}u
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <select
-              value={category}
-              aria-label="Category"
-              onChange={(e) => setCategory(e.target.value)}
-              className="min-h-9 flex-1 border border-[var(--app-border)] bg-[var(--app-sunken)] px-2 text-xs text-[var(--app-fg)]"
-            >
-              {ITEM_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
+        <div className="flex flex-col gap-3 border-t border-[var(--app-border)] pt-3 motion-safe:animate-[row-in_var(--dur)_var(--ease)]">
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="u-label text-[0.5625rem] text-[var(--app-muted)]">Size</legend>
+            <div className="grid grid-cols-3 gap-1.5">
+              {SIZES.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setSize(s)}
+                  aria-pressed={size === s}
+                  className={[
+                    'u-label min-h-10 border px-2 text-[0.5625rem]',
+                    'transition-colors duration-[var(--dur)] ease-[var(--ease)]',
+                    size === s
+                      ? 'border-[var(--app-fg)] bg-[var(--app-sunken)] text-[var(--app-fg)]'
+                      : 'border-[var(--app-border)] text-[var(--app-muted)] hover:text-[var(--app-fg)]',
+                  ].join(' ')}
+                >
+                  {s}
+                </button>
               ))}
-            </select>
-            <label className="flex min-h-9 items-center gap-2">
-              <input
-                type="checkbox"
-                checked={essential}
-                onChange={(e) => setEssential(e.target.checked)}
-                className="h-4 w-4 accent-[var(--app-accent)]"
-              />
-              <span className="u-label text-[0.5rem] text-[var(--app-muted)]">Essential</span>
-            </label>
-          </div>
+            </div>
+          </fieldset>
+
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="u-label text-[0.5625rem] text-[var(--app-muted)]">Category</legend>
+            <div className="grid grid-cols-4 gap-1.5">
+              {ITEM_CATEGORIES.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setCategory(c)}
+                  aria-pressed={category === c}
+                  className={[
+                    'u-label min-h-10 border px-1 text-[0.5625rem]',
+                    'transition-colors duration-[var(--dur)] ease-[var(--ease)]',
+                    category === c
+                      ? 'border-[var(--app-fg)] bg-[var(--app-sunken)] text-[var(--app-fg)]'
+                      : 'border-[var(--app-border)] text-[var(--app-muted)] hover:text-[var(--app-fg)]',
+                  ].join(' ')}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+
+          <button
+            type="button"
+            onClick={() => setEssential(!essential)}
+            aria-pressed={essential}
+            className={[
+              'flex min-h-11 items-center justify-between border px-3',
+              'transition-colors duration-[var(--dur)] ease-[var(--ease)]',
+              essential
+                ? 'border-[var(--app-accent)] text-[var(--app-fg)]'
+                : 'border-[var(--app-border)] text-[var(--app-muted)]',
+            ].join(' ')}
+          >
+            <span className="u-label text-[0.5625rem]">Essential — don’t leave without it</span>
+            <span
+              aria-hidden="true"
+              className={[
+                'u-label text-[0.5625rem]',
+                essential ? 'text-[var(--app-accent)]' : 'text-[var(--app-faint)]',
+              ].join(' ')}
+            >
+              {essential ? 'On' : 'Off'}
+            </span>
+          </button>
         </div>
       ) : null}
     </div>

@@ -1,12 +1,10 @@
 import type { Container, Item, Traveller } from '@/domain/types';
 import { subtypeSpec } from '@/domain/catalog';
 import { formatLocation, resolveLocation } from '@/domain/location';
-import { fillRatio, fillStatus, usedUnitsDeep } from '@/domain/volume';
 import { AddItemForm, type AddItemValues } from './AddItemForm';
 import { ItemRow } from './ItemRow';
 import { IconForKind } from './icons/Icon';
 import { Button } from './ui/Button';
-import { ProgressBar } from './ui/ProgressBar';
 import { Sheet } from './ui/Sheet';
 
 export interface ContainerSheetProps {
@@ -20,6 +18,7 @@ export interface ContainerSheetProps {
   onTogglePacked: (item: Item) => void;
   onQuantityChange: (item: Item, quantity: number) => void;
   onMoveItem: (item: Item) => void;
+  onDeleteItem: (item: Item) => void;
   onEdit: (container: Container) => void;
   onDelete: (container: Container) => void;
   /** Selecting a nested pouch switches this sheet to it. */
@@ -41,15 +40,13 @@ export function ContainerSheet({
   onTogglePacked,
   onQuantityChange,
   onMoveItem,
+  onDeleteItem,
   onEdit,
   onDelete,
   onSelectContainer,
 }: ContainerSheetProps) {
   if (!container) return null;
 
-  const used = usedUnitsDeep(container.id, containers, items);
-  const ratio = fillRatio(used, container.capacityUnits);
-  const status = fillStatus(ratio);
   const mine = items.filter((i) => i.containerId === container.id);
   const children = containers.filter((c) => c.parentContainerId === container.id);
   const crumbs = resolveLocation({ containerId: container.id }, { containers, travellers });
@@ -89,25 +86,6 @@ export function ContainerSheet({
           </div>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <ProgressBar
-            value={used}
-            max={container.capacityUnits}
-            status={status}
-            label={`${container.label} fill`}
-          />
-          {status !== 'ok' ? (
-            <p
-              className="u-label text-[0.5625rem]"
-              style={{ color: status === 'red' ? 'var(--app-danger)' : 'var(--app-accent)' }}
-            >
-              {status === 'red'
-                ? 'Won’t fit — well over capacity'
-                : 'Full — anything more is a squeeze'}
-            </p>
-          ) : null}
-        </div>
-
         {children.length > 0 ? (
           <section className="flex flex-col gap-1.5">
             <h3 className="u-label text-[0.5625rem] text-[var(--app-muted)]">Pouches inside</h3>
@@ -130,7 +108,8 @@ export function ContainerSheet({
           </section>
         ) : null}
 
-        <section className="flex flex-col gap-1">
+        {/* --row-bg: the swipe-to-delete face must stay opaque on this surface. */}
+        <section className="flex flex-col gap-1 [--row-bg:var(--app-surface)]">
           <h3 className="u-label text-[0.5625rem] text-[var(--app-muted)]">
             {mine.length} {mine.length === 1 ? 'item' : 'items'}
           </h3>
@@ -146,6 +125,7 @@ export function ContainerSheet({
                 onTap={onMoveItem}
                 onTogglePacked={onTogglePacked}
                 onQuantityChange={onQuantityChange}
+                onDelete={onDeleteItem}
               />
             ))
           )}

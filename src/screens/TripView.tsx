@@ -6,9 +6,10 @@ import { useContainers, useItems, useTravellers, useTrip } from '@/data/hooks';
 import { formatLocation, resolveLocation } from '@/domain/location';
 import { useUiStore } from '@/store/ui';
 import { platform } from '@/platform';
-import { IconChevronLeft, IconPlus } from '@/components/icons/Icon';
+import { IconChevronLeft, IconEdit, IconMore, IconPlus, IconTrash } from '@/components/icons/Icon';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { Sheet } from '@/components/ui/Sheet';
 import { TravellerFormSheet, type TravellerFormValues } from '@/components/TravellerFormSheet';
 import { ContainerFormSheet, type ContainerFormValues } from '@/components/ContainerFormSheet';
 import { LuggageView } from '@/components/LuggageView';
@@ -40,6 +41,7 @@ export function TripView() {
   const [travellerFormOpen, setTravellerFormOpen] = useState(false);
   const [editingTraveller, setEditingTraveller] = useState<Traveller | undefined>(undefined);
   const [pendingTravellerDelete, setPendingTravellerDelete] = useState<Traveller | null>(null);
+  const [travellerMenuOpen, setTravellerMenuOpen] = useState(false);
 
   const [containerFormOpen, setContainerFormOpen] = useState(false);
   const [editingContainer, setEditingContainer] = useState<Container | undefined>(undefined);
@@ -123,7 +125,6 @@ export function TripView() {
         subtype: values.subtype,
         label: values.label,
         colorHex: values.colorHex,
-        capacityUnits: values.capacityUnits,
         parentContainerId: parent,
       });
       if (!result.ok) {
@@ -137,7 +138,6 @@ export function TripView() {
         subtype: values.subtype,
         label: values.label,
         colorHex: values.colorHex,
-        capacityUnits: values.capacityUnits,
         ...(parent ? { parentContainerId: parent } : {}),
       });
       // The repo is the authority on caps (C6) — the UI grey-out is a courtesy.
@@ -223,6 +223,30 @@ export function TripView() {
     await repo.updateItem(item.id, { quantity });
   }
 
+  /** Swipe-to-delete target. Undo re-creates the item where it was. */
+  async function deleteItem(item: Item) {
+    if (!tripId) return;
+    await repo.deleteItem(item.id);
+    void platform.haptic('warning');
+    pushToast(`${item.name} deleted`, {
+      undo: () => {
+        void (async () => {
+          const restored = await repo.addItem(tripId, {
+            name: item.name,
+            category: item.category,
+            size: item.size,
+            quantity: item.quantity,
+            essential: item.essential,
+            containerId: item.containerId,
+            ...(item.notes ? { notes: item.notes } : {}),
+            ...(item.photoDataUrl ? { photoDataUrl: item.photoDataUrl } : {}),
+          });
+          if (item.packed) await repo.setPacked(restored.id, true);
+        })();
+      },
+    });
+  }
+
   /**
    * §4.3: tap an item → the drawer collapses, the camera frames its container,
    * the container pulses, the breadcrumb shows, and one haptic tick fires.
@@ -280,11 +304,13 @@ export function TripView() {
       style={{
         paddingTop: 'var(--safe-top)',
         paddingRight: 'var(--safe-right)',
-        paddingBottom: 'var(--safe-bottom)',
+        // The inventory drawer overlays the bottom; keep the scene clear of its
+        // collapsed handle instead of padding the safe area twice.
+        paddingBottom: 'calc(2.75rem + var(--safe-bottom))',
         paddingLeft: 'var(--safe-left)',
       }}
     >
-      <header className="flex items-center gap-1 pb-4">
+      <header className="flex items-center gap-1 pb-3">
         <Link
           to="/"
           aria-label="Back to trips"
@@ -302,55 +328,63 @@ export function TripView() {
         </div>
       </header>
 
-      {/* Traveller tab strip */}
-      <div
-        role="tablist"
-        aria-label="Travellers"
-        className="flex gap-2 overflow-x-auto border-b border-[var(--app-border)] pb-3"
-      >
-        {(travellers ?? []).map((t) => {
-          const active = t.id === selectedTravellerId;
-          return (
-            <button
-              key={t.id}
-              role="tab"
-              aria-selected={active}
-              onClick={() => selectTraveller(t.id)}
-              onDoubleClick={() => {
-                setEditingTraveller(t);
-                setTravellerFormOpen(true);
-              }}
-              className={[
-                'flex min-h-11 shrink-0 items-center gap-2 border px-3',
-                'transition-colors duration-[var(--dur)] ease-[var(--ease)]',
-                active
-                  ? 'border-[var(--app-fg)] bg-[var(--app-surface)]'
-                  : 'border-[var(--app-border)] text-[var(--app-muted)] hover:text-[var(--app-fg)]',
-              ].join(' ')}
-            >
-              <span
-                aria-hidden="true"
-                className="h-3 w-3 shrink-0"
-                style={{ background: t.accentColor }}
-              />
-              <span className="u-label text-[0.625rem]">{t.name}</span>
-            </button>
-          );
-        })}
-        <button
-          aria-label="Add traveller"
-          onClick={() => {
-            setEditingTraveller(undefined);
-            setTravellerFormOpen(true);
-          }}
-          className="grid h-11 w-11 shrink-0 place-items-center border border-dashed border-[var(--app-border-strong)] text-[var(--app-muted)] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:text-[var(--app-fg)]"
+      {/* Traveller tab strip. The ⋯ opens the selected traveller's actions. */}
+      <div className="flex items-center gap-2 border-b border-[var(--app-border)] pb-3">
+        <div
+          role="tablist"
+          aria-label="Travellers"
+          className="flex min-w-0 flex-1 gap-2 overflow-x-auto"
         >
-          <IconPlus size={18} />
-        </button>
+          {(travellers ?? []).map((t) => {
+            const active = t.id === selectedTravellerId;
+            return (
+              <button
+                key={t.id}
+                role="tab"
+                aria-selected={active}
+                onClick={() => selectTraveller(t.id)}
+                className={[
+                  'flex min-h-11 shrink-0 items-center gap-2 border px-3',
+                  'transition-colors duration-[var(--dur)] ease-[var(--ease)]',
+                  active
+                    ? 'border-[var(--app-accent)] bg-[var(--app-surface)] text-[var(--app-fg)]'
+                    : 'border-[var(--app-border)] text-[var(--app-muted)] hover:text-[var(--app-fg)]',
+                ].join(' ')}
+              >
+                <span
+                  aria-hidden="true"
+                  className="h-3 w-3 shrink-0"
+                  style={{ background: t.accentColor }}
+                />
+                <span className="u-label text-[0.625rem]">{t.name}</span>
+              </button>
+            );
+          })}
+          <button
+            aria-label="Add traveller"
+            onClick={() => {
+              setEditingTraveller(undefined);
+              setTravellerFormOpen(true);
+            }}
+            className="grid h-11 w-11 shrink-0 place-items-center border border-dashed border-[var(--app-border-strong)] text-[var(--app-muted)] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:text-[var(--app-fg)]"
+          >
+            <IconPlus size={18} />
+          </button>
+        </div>
+        {selected ? (
+          <button
+            aria-label={`Options for ${selected.name}`}
+            onClick={() => setTravellerMenuOpen(true)}
+            className="grid h-11 w-11 shrink-0 place-items-center border border-[var(--app-border)] text-[var(--app-muted)] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:text-[var(--app-fg)]"
+          >
+            <IconMore size={18} />
+          </button>
+        ) : null}
       </div>
 
-      {/* pb clears the fixed drawer handle and leaves room for a toast. */}
-      <section className="flex flex-1 flex-col overflow-y-auto pt-4 pb-28">
+      {/* The room fills everything between the tab strip and the drawer —
+          the screen itself never scrolls (the fallback list scrolls inside). */}
+      <section className="relative flex min-h-0 flex-1 flex-col pt-3">
         {!selected ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
             <h2 className="u-label text-sm">No travellers yet</h2>
@@ -367,74 +401,88 @@ export function TripView() {
             </Button>
           </div>
         ) : (
-          <>
-            <div className="relative">
-              <LuggageView
-                containers={myContainers}
-                items={items ?? []}
-                accentColor={selected.accentColor}
-                selectedContainerId={selectedContainerId}
-                highlightedContainerId={highlightedContainerId}
-                onSelect={(id) => {
-                  selectContainer(id);
-                  if (id) {
-                    setContainerSheetOpen(true);
-                    void platform.haptic('light');
-                  }
-                }}
-                onAdd={(kind) => {
-                  setEditingContainer(undefined);
-                  setAddKind(kind);
-                  setContainerFormOpen(true);
-                }}
-              />
+          <div className="relative min-h-0 flex-1">
+            <LuggageView
+              containers={myContainers}
+              items={items ?? []}
+              accentColor={selected.accentColor}
+              selectedContainerId={selectedContainerId}
+              highlightedContainerId={highlightedContainerId}
+              onSelect={(id) => {
+                selectContainer(id);
+                if (id) {
+                  setContainerSheetOpen(true);
+                  void platform.haptic('light');
+                }
+              }}
+              onAdd={(kind) => {
+                setEditingContainer(undefined);
+                setAddKind(kind);
+                setContainerFormOpen(true);
+              }}
+            />
 
-              {/* §4.3 step 4: the breadcrumb floats over the canvas while the
-                  located container pulses. */}
-              {locatedLabel ? (
-                <p
-                  role="status"
-                  className="u-data pointer-events-none absolute inset-x-2 top-2 border border-[var(--app-accent)] bg-[var(--app-bg)] px-2 py-1.5 text-center text-[0.625rem] text-[var(--app-fg)]"
-                >
-                  {locatedLabel}
-                </p>
-              ) : null}
-
-              {/* §5 accessibility: selection is announced, since the visual
-                  cue (a highlighted mesh) is invisible to a screen reader. */}
-              <p aria-live="polite" className="sr-only-focusable">
-                {selectedContainer
-                  ? `${selectedContainer.label} selected, ${
-                      (items ?? []).filter((i) => i.containerId === selectedContainer.id).length
-                    } items`
-                  : ''}
+            {/* §4.3 step 4: the breadcrumb floats over the canvas while the
+                located container pulses. */}
+            {locatedLabel ? (
+              <p
+                role="status"
+                className="u-data pointer-events-none absolute inset-x-2 top-2 border border-[var(--app-accent)] bg-[var(--app-bg)] px-2 py-1.5 text-center text-[0.625rem] text-[var(--app-fg)] motion-safe:animate-[drop-in_var(--dur)_var(--ease)]"
+              >
+                {locatedLabel}
               </p>
-            </div>
+            ) : null}
 
-            {/* Container edit/remove live in the container sheet; this row is
-                the traveller's own actions. */}
-            <div className="mt-6 flex items-center justify-between gap-2 border-t border-[var(--app-border)] pt-4">
-              <p className="u-data text-[0.6875rem] text-[var(--app-faint)]">
-                {items?.length ?? 0} items · {myContainers.length} containers
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setEditingTraveller(selected);
-                    setTravellerFormOpen(true);
-                  }}
-                >
-                  Edit {selected.name}
-                </Button>
-                <Button variant="ghost" onClick={() => setPendingTravellerDelete(selected)}>
-                  Remove
-                </Button>
-              </div>
-            </div>
-          </>
+            {/* §5 accessibility: selection is announced, since the visual
+                cue (a highlighted mesh) is invisible to a screen reader. */}
+            <p aria-live="polite" className="sr-only-focusable">
+              {selectedContainer
+                ? `${selectedContainer.label} selected, ${
+                    (items ?? []).filter((i) => i.containerId === selectedContainer.id).length
+                  } items`
+                : ''}
+            </p>
+          </div>
         )}
       </section>
+
+      {/* The ⋯ menu: the selected traveller's own actions, off the main screen. */}
+      {selected ? (
+        <Sheet
+          open={travellerMenuOpen}
+          title={selected.name}
+          onClose={() => setTravellerMenuOpen(false)}
+        >
+          <div className="flex flex-col gap-2">
+            <Button
+              variant="secondary"
+              block
+              onClick={() => {
+                setTravellerMenuOpen(false);
+                setEditingTraveller(selected);
+                setTravellerFormOpen(true);
+              }}
+            >
+              <IconEdit size={16} />
+              Edit traveller
+            </Button>
+            <Button
+              variant="danger"
+              block
+              onClick={() => {
+                setTravellerMenuOpen(false);
+                setPendingTravellerDelete(selected);
+              }}
+            >
+              <IconTrash size={16} />
+              Remove traveller
+            </Button>
+            <p className="u-data pt-1 text-center text-[0.625rem] text-[var(--app-faint)]">
+              {(items ?? []).length} items · {myContainers.length} containers
+            </p>
+          </div>
+        </Sheet>
+      ) : null}
 
       <TravellerFormSheet
         open={travellerFormOpen}
@@ -494,6 +542,7 @@ export function TripView() {
         onTogglePacked={toggleItemPacked}
         onQuantityChange={changeItemQuantity}
         onMoveItem={(item) => setMovingItems([item])}
+        onDeleteItem={deleteItem}
         onSelectContainer={(id) => selectContainer(id)}
         onEdit={(container) => {
           setContainerSheetOpen(false);
@@ -531,6 +580,7 @@ export function TripView() {
         onLocate={locate}
         onTogglePacked={toggleItemPacked}
         onMove={(selection) => setMovingItems(selection)}
+        onDeleteItem={deleteItem}
       />
     </main>
   );

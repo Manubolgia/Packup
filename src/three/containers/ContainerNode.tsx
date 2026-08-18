@@ -1,30 +1,30 @@
-import { useMemo, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useEffect, useMemo, useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
-import type { Container, Item } from '@/domain/types';
-import { fillRatio, fillStatus, usedUnitsDeep } from '@/domain/volume';
-import { fillBlockCount, KIND_SIZE, type PlacedContainer } from '../layout';
-import { fillMaterial, ghostMaterial, shellMaterial } from '../materials';
+import type { Item } from '@/domain/types';
+import { KIND_SIZE, type PlacedContainer } from '../layout';
 import { ContainerShape } from './Shapes';
 
 export interface ContainerNodeProps {
   placed: PlacedContainer;
-  containers: readonly Container[];
   items: readonly Item[];
   accentColor: string;
   selected: boolean;
-  /** Pulses an outline for ~1.5s when the drawer taps through (§4.3). */
+  /** Pulses the outline for ~1.5s when the drawer taps through (§4.3). */
   highlighted: boolean;
   onSelect: (id: string) => void;
   onHover: (hovering: boolean) => void;
 }
 
 const HIGHLIGHT_PERIOD = 0.55;
+/** Seconds for a newly added container to pop into place. */
+const APPEAR_S = 0.35;
+
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
 export function ContainerNode({
   placed,
-  containers,
   items,
   accentColor,
   selected,
@@ -33,54 +33,71 @@ export function ContainerNode({
   onHover,
 }: ContainerNodeProps) {
   const { container, position, nested } = placed;
-  const outlineRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
+  const outlineRef = useRef<THREE.LineSegments>(null);
+  const { invalidate } = useThree();
 
-  const used = usedUnitsDeep(container.id, containers, items);
-  const ratio = fillRatio(used, container.capacityUnits);
-  const status = fillStatus(ratio);
-  const blocks = fillBlockCount(used, container.capacityUnits);
-
-  const material = selected ? ghostMaterial(container.colorHex) : shellMaterial(container.colorHex);
-  const half = KIND_SIZE[container.kind];
   // A nested pouch is drawn smaller so it reads as "inside", not "next to".
-  const scale = nested ? 0.72 : 1;
+  const baseScale = nested ? 0.72 : 1;
+  /** 0→1 mount animation: the room populates as luggage is added. */
+  const appear = useRef(0);
 
+  const half = KIND_SIZE[container.kind];
+
+  // Accent outline for selected/located. Local instances, not the shared
+  // caches: the pulse mutates opacity, which must not leak to other nodes.
   const outlineGeometry = useMemo(
-    () => new THREE.BoxGeometry(half[0] * 2.2, half[1] * 2.2, half[2] * 2.2),
+    () =>
+      new THREE.EdgesGeometry(
+        new THREE.BoxGeometry(half[0] * 2.16, half[1] * 2.16, half[2] * 2.16),
+      ),
     [half],
   );
-
-  const outlineMaterial = useMemo(
-    () =>
-      new THREE.MeshBasicMaterial({
-        color: accentColor,
-        wireframe: true,
-        transparent: true,
-        opacity: 0,
-      }),
+  const outlineMat = useMemo(
+    () => new THREE.LineBasicMaterial({ color: accentColor, transparent: true, opacity: 0.95 }),
     [accentColor],
   );
+  useEffect(
+    () => () => {
+      outlineGeometry.dispose();
+      outlineMat.dispose();
+    },
+    [outlineGeometry, outlineMat],
+  );
 
-  // The pulse is animation, not state: driving it here avoids re-rendering the
-  // whole scene 60 times while it runs.
-  useFrame(({ clock }) => {
-    if (!outlineRef.current) return;
-    const mat = outlineRef.current.material as THREE.MeshBasicMaterial;
-    mat.opacity = highlighted
-      ? 0.35 + 0.45 * Math.abs(Math.sin((clock.elapsedTime * Math.PI) / HIGHLIGHT_PERIOD))
-      : 0;
-    outlineRef.current.visible = highlighted;
+  // Animation, not state: driving it here avoids re-rendering the whole scene
+  // 60 times while it runs. The demand frameloop only ticks while we invalidate.
+  useFrame(({ clock }, delta) => {
+    let animating = false;
+
+    if (appear.current < 1) {
+      appear.current = Math.min(1, appear.current + delta / APPEAR_S);
+      animating = true;
+    }
+    groupRef.current?.scale.setScalar(baseScale * easeOutCubic(appear.current));
+
+    if (outlineRef.current) {
+      outlineRef.current.visible = selected || highlighted;
+      if (highlighted) {
+        outlineMat.opacity =
+          0.35 + 0.6 * Math.abs(Math.sin((clock.elapsedTime * Math.PI) / HIGHLIGHT_PERIOD));
+        animating = true;
+      } else {
+        outlineMat.opacity = 0.95;
+      }
+    }
+
+    if (animating) invalidate();
   });
 
-  const percent = Math.round(ratio * 100);
-  const directCount = items.filter((i) => i.containerId === container.id).length;
+  const mine = items.filter((i) => i.containerId === container.id);
+  const packedCount = mine.filter((i) => i.packed).length;
 
   return (
     <group
       ref={groupRef}
       position={position as unknown as [number, number, number]}
-      scale={scale}
+      scale={0}
       onClick={(e) => {
         e.stopPropagation();
         onSelect(container.id);
@@ -91,49 +108,22 @@ export function ContainerNode({
       }}
       onPointerOut={() => onHover(false)}
     >
-      <ContainerShape container={container} material={material} />
+      <ContainerShape container={container} />
 
-      <mesh
+      <lineSegments
         ref={outlineRef}
         geometry={outlineGeometry}
-        material={outlineMaterial}
+        material={outlineMat}
         visible={false}
       />
 
-      {/* Selected: translucent shell reveals stacked volume blocks inside. */}
-      {selected && blocks > 0 ? (
-        <group>
-          {Array.from({ length: blocks }, (_, i) => {
-            const blockHeight = (half[1] * 1.7) / 12;
-            return (
-              <mesh
-                key={i}
-                position={[0, -half[1] * 0.85 + blockHeight * (i + 0.5), 0]}
-                material={fillMaterial(accentColor)}
-              >
-                <boxGeometry args={[half[0] * 1.5, blockHeight * 0.82, half[2] * 1.5]} />
-              </mesh>
-            );
-          })}
-        </group>
-      ) : null}
-
-      {/* Unselected: an opaque shell with a fill bar on the front panel —
-          cheaper and clearer than revealing the interior (§5). */}
-      {!selected ? (
-        <group position={[0, -half[1] * 0.82, half[2] + 0.012]}>
-          <mesh>
-            <planeGeometry args={[half[0] * 1.5, 0.05]} />
-            <meshBasicMaterial color="#0E1113" transparent opacity={0.75} />
-          </mesh>
-          <mesh
-            position={[(-half[0] * 1.5 * (1 - Math.min(ratio, 1))) / 2, 0, 0.002]}
-            scale={[Math.max(Math.min(ratio, 1), 0.001), 1, 1]}
-          >
-            <planeGeometry args={[half[0] * 1.5, 0.05]} />
-            <meshBasicMaterial color={status === 'red' ? '#C2401F' : accentColor} />
-          </mesh>
-        </group>
+      {/* Stage mark under the selected container — the flat, technical-drawing
+          answer to a glow. Skipped for nested pouches riding a parent. */}
+      {selected && !nested ? (
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.045 - position[1], 0]}>
+          <planeGeometry args={[half[0] * 2.9, half[2] * 3.6]} />
+          <meshBasicMaterial color={accentColor} transparent opacity={0.3} />
+        </mesh>
       ) : null}
 
       {/* §5 accessibility: every container is also a focusable button with a
@@ -144,7 +134,7 @@ export function ContainerNode({
           onClick={() => onSelect(container.id)}
           aria-pressed={selected}
         >
-          {`${container.label}, ${directCount} items, ${percent} percent full`}
+          {`${container.label}, ${mine.length} items, ${packedCount} packed`}
         </button>
       </Html>
     </group>

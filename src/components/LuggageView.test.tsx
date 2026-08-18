@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LuggageView } from './LuggageView';
 import { resetWebGLDetection } from '@/three/webgl';
@@ -66,7 +66,7 @@ describe('without WebGL (C8)', () => {
 
     expect(screen.getByText(/3d is unavailable on this device/i)).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /big black samsonite, 1 items, 1 percent full/i }),
+      screen.getByRole('button', { name: /big black samsonite, 1 items, 0 packed/i }),
     ).toBeInTheDocument();
   });
 
@@ -74,7 +74,7 @@ describe('without WebGL (C8)', () => {
     const { onSelect, onAdd } = renderView();
 
     await userEvent.click(
-      screen.getByRole('button', { name: /big black samsonite, 1 items, 1 percent full/i }),
+      screen.getByRole('button', { name: /big black samsonite, 1 items, 0 packed/i }),
     );
     expect(onSelect).toHaveBeenCalledWith('c-1');
 
@@ -96,36 +96,12 @@ describe('with WebGL available', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /show as list/i }));
     expect(
-      screen.getByRole('button', { name: /big black samsonite, 1 items, 1 percent full/i }),
+      screen.getByRole('button', { name: /big black samsonite, 1 items, 0 packed/i }),
     ).toBeInTheDocument();
     // Opting into the list is a preference, not a failure, so no banner.
     expect(screen.queryByText(/3d is unavailable/i)).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: /show 3d view/i }));
-    expect(screen.getByRole('button', { name: /reset view/i })).toBeInTheDocument();
-  });
-});
-
-describe('over-capacity warnings (§5)', () => {
-  beforeEach(() => resetWebGLDetection(false));
-
-  it('warns without blocking when a container is over-filled', () => {
-    // 20 large items = 160 units in a 120-unit case: past the 120% red line.
-    const overfilled: Item = { ...item, size: 'large', quantity: 20 };
-    renderView({ items: [overfilled] });
-
-    const card = screen.getByRole('button', { name: /big black samsonite/i });
-    expect(within(card).getByText(/won’t fit/i)).toBeInTheDocument();
-    // The card still renders and stays tappable — a warning, not a rule.
-    expect(card).toBeEnabled();
-  });
-
-  it('shows the amber "full" chip between 100% and 120%', () => {
-    // 14 large = 112 units in a 120-unit case is under; 15 large = 120 hits it.
-    const full: Item = { ...item, size: 'large', quantity: 15 };
-    renderView({ items: [full] });
-
-    const card = screen.getByRole('button', { name: /big black samsonite/i });
-    expect(within(card).getByText(/^full$/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /show as list/i })).toBeInTheDocument();
   });
 });

@@ -1,13 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  fillBlockCount,
-  frameContainer,
-  KIND_SIZE,
-  placeContainers,
-  PERSON_X,
-  ROW_Z,
-  slotPosition,
-} from './layout';
+import { KIND_SIZE, placeContainers, PERSON_X, ROW_Z, slotPosition } from './layout';
 import type { Container, ContainerKind } from '@/domain/types';
 
 /**
@@ -55,11 +47,20 @@ describe('slotPosition', () => {
     }
   });
 
-  it('stands the person off to the right of the rows', () => {
-    const [x] = slotPosition('person', 0);
-    expect(x).toBe(PERSON_X);
-    // Clear of the widest row (suitcases at pitch 1.35 reach x=1.35).
-    expect(x).toBeGreaterThan(1.35 + KIND_SIZE.suitcase[0]);
+  it('stands the person clear of every luggage slot footprint', () => {
+    const [px, , pz] = slotPosition('person', 0);
+    expect(px).toBe(PERSON_X);
+
+    // The person may share an axis with a row as long as the footprints
+    // cannot overlap — clearance in x or in z is each sufficient.
+    for (const kind of ['suitcase', 'bag', 'pouch'] as const) {
+      for (const slot of [0, 1, 2]) {
+        const [sx, , sz] = slotPosition(kind, slot);
+        const clearX = Math.abs(px - sx) > KIND_SIZE[kind][0] + KIND_SIZE.person[0];
+        const clearZ = Math.abs(pz - sz) > KIND_SIZE[kind][2] + KIND_SIZE.person[2];
+        expect(clearX || clearZ).toBe(true);
+      }
+    }
   });
 });
 
@@ -104,51 +105,5 @@ describe('placeContainers', () => {
     // rather than rendered at the origin.
     const orphan = container('pouch', 0, 'missing-parent');
     expect(placeContainers([orphan])).toHaveLength(0);
-  });
-});
-
-describe('frameContainer', () => {
-  it('targets the container and keeps a workable minimum distance', () => {
-    const placed = placeContainers([container('pouch', 0)])[0]!;
-    const framing = frameContainer(placed);
-
-    expect(framing.target).toEqual(placed.position);
-    // A pouch is tiny; the camera must not end up inside it.
-    expect(framing.distance).toBeGreaterThanOrEqual(2.6);
-  });
-
-  it('keeps the whole container inside the frame, not filling it edge to edge', () => {
-    // Framing on the diagonal rather than the tallest axis: a suitcase seen at
-    // an angle presents its diagonal, and overshooting pushes it off-canvas.
-    const suitcase = placeContainers([container('suitcase', 0)])[0]!;
-    const { distance } = frameContainer(suitcase);
-    const diagonal = Math.hypot(...KIND_SIZE.suitcase);
-    expect(distance).toBeGreaterThan(diagonal * 4);
-  });
-
-  it('pulls back further for a bigger container', () => {
-    const suitcase = placeContainers([container('suitcase', 0)])[0]!;
-    const pouch = placeContainers([container('pouch', 0)])[0]!;
-    expect(frameContainer(suitcase).distance).toBeGreaterThan(frameContainer(pouch).distance);
-  });
-});
-
-describe('fillBlockCount', () => {
-  it('is zero when empty and capped when over-full', () => {
-    expect(fillBlockCount(0, 60)).toBe(0);
-    expect(fillBlockCount(120, 60, 12)).toBe(12);
-  });
-
-  it('shows at least one block for any non-zero contents', () => {
-    // A single small item in a huge suitcase must still be visible.
-    expect(fillBlockCount(1, 120, 12)).toBe(1);
-  });
-
-  it('scales roughly with the fill ratio', () => {
-    expect(fillBlockCount(30, 60, 12)).toBe(6);
-  });
-
-  it('treats a zero-capacity container as undrawable rather than dividing by zero', () => {
-    expect(fillBlockCount(5, 0)).toBe(0);
   });
 });

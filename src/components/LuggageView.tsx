@@ -18,8 +18,9 @@ export interface LuggageViewProps {
 }
 
 /**
- * Chooses between the 3D scene and the flat list, and owns the explanation
+ * Chooses between the 3D room and the flat list, and owns the explanation
  * shown when WebGL is missing. Both paths expose the same actions (C5, C8).
+ * Fills whatever height the trip screen gives it — the app never page-scrolls.
  */
 export function LuggageView(props: LuggageViewProps) {
   const webgl = useMemo(() => isWebGLAvailable(), []);
@@ -28,9 +29,9 @@ export function LuggageView(props: LuggageViewProps) {
 
   if (flat) {
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex h-full min-h-0 flex-col gap-3">
         {!webgl ? (
-          <p className="u-data border border-[var(--app-border)] p-3 text-[0.6875rem] text-[var(--app-muted)]">
+          <p className="u-data shrink-0 border border-[var(--app-border)] p-3 text-[0.6875rem] text-[var(--app-muted)]">
             3D is unavailable on this device, so your luggage is shown as a list. Everything still
             works.
           </p>
@@ -38,48 +39,49 @@ export function LuggageView(props: LuggageViewProps) {
         {webgl ? (
           <button
             onClick={() => setForce2D(false)}
-            className="u-label self-start text-[0.5625rem] text-[var(--app-accent)]"
+            className="u-label shrink-0 self-start text-[0.5625rem] text-[var(--app-accent)]"
           >
             Show 3D view
           </button>
         ) : null}
-        <LuggagePanel
-          containers={props.containers}
-          items={props.items}
-          selectedContainerId={props.selectedContainerId}
-          onSelect={props.onSelect}
-          onAdd={props.onAdd}
-        />
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <LuggagePanel
+            containers={props.containers}
+            items={props.items}
+            selectedContainerId={props.selectedContainerId}
+            onSelect={props.onSelect}
+            onAdd={props.onAdd}
+          />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      {/* Landscape: the scene is laid out along X (three slots wide plus the
-          person), so a portrait canvas crops the rows and wastes floor. */}
-      <div className="relative aspect-[4/3] max-h-[42dvh] min-h-[15rem] w-full border border-[var(--app-border)]">
-        <Suspense
-          fallback={
-            <div className="grid h-full place-items-center">
-              <p className="u-data text-[0.6875rem] text-[var(--app-faint)]">Loading 3D…</p>
-            </div>
-          }
-        >
-          <Scene {...props} />
-        </Suspense>
+    <div className="relative h-full min-h-0 w-full overflow-hidden border border-[var(--app-border)]">
+      <Suspense
+        fallback={
+          <div className="grid h-full place-items-center">
+            <p className="u-data text-[0.6875rem] text-[var(--app-faint)]">Loading 3D…</p>
+          </div>
+        }
+      >
+        <Scene {...props} />
+      </Suspense>
 
-        <button
-          onClick={() => props.onSelect(null)}
-          className="u-label absolute top-2 right-2 border border-[var(--app-border-strong)] bg-[var(--app-bg)] px-2 py-1.5 text-[0.5rem] text-[var(--app-muted)] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:text-[var(--app-fg)]"
-        >
-          Reset view
-        </button>
-      </div>
+      {/* Vignette: a touch of depth at the edges, outside the WebGL budget. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 120% 105% at 50% 42%, transparent 62%, rgb(20 23 26 / 0.28) 100%)',
+        }}
+      />
 
       <button
         onClick={() => setForce2D(true)}
-        className="u-label self-start text-[0.5625rem] text-[var(--app-muted)] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:text-[var(--app-fg)]"
+        className="u-label absolute right-2 bottom-2 border border-[var(--app-border-strong)] bg-[var(--app-bg)] px-2.5 py-1.5 text-[0.5625rem] text-[var(--app-muted)] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:text-[var(--app-fg)]"
       >
         Show as list
       </button>

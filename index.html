@@ -18,6 +18,22 @@
     <link rel="icon" href="./favicon.ico" sizes="32x32" />
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon-180.png" />
     <title>Packup!</title>
+    <!-- Applied before first paint so a stored theme never flashes the other one.
+         Kept in sync with src/app/theme.ts. -->
+    <script>
+      (function () {
+        var stored = null;
+        try {
+          stored = localStorage.getItem('packup.theme');
+        } catch (e) {
+          /* storage may be unavailable; fall through to the system preference */
+        }
+        var dark =
+          stored === 'dark' ||
+          (stored !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

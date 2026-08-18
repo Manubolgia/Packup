@@ -259,3 +259,87 @@ unverified native configuration.
   claiming a build works without observing it. Everything M7 depends on — the
   `Platform` abstraction, native detection, SW-skip, `base:'./'`, hash routing —
   is already in place, so M7 remains configuration rather than surgery.
+
+## V2 overhaul (2026-08)
+
+### D29 — Carrying capacity removed from the product, kept in the schema
+
+**Direction:** "Remove the whole carrying capacity mechanic."
+**Decided:** every capacity surface is gone — the capacity field in the luggage
+form, fill bars, amber/red states, unit badges, the 3D fill blocks. The
+`capacityUnits` column stays in the Dexie schema and the repo still writes the
+subtype default, so existing databases and old backup files load unchanged and
+no migration runs. `domain/volume.ts` survives for that default table and its
+tests.
+
+### D30 — Fixed-view hotel room replaces the orbitable void
+
+**Direction:** no orbiting; a fixed front-facing room that populates as luggage
+is added, with a professional render quality.
+**Decided:** OrbitControls and the camera-flight rig are deleted. The scene is
+a procedural hotel room (wall, window + curtains, bed, nightstand + lamp, rug,
+plant, slippers) built from primitives and one canvas wood texture — still zero
+fetched assets (C4). Rendering: ACES filmic tone mapping, PMREM RoomEnvironment
+for reflections (procedural, ships with three), PCFSoft shadows from one key
+light plus hemisphere fill and a cool rim, fog past the walls, CSS vignette.
+Materials are MeshStandardMaterial — hardshells glossy, fabric matte.
+**Found while verifying:** a portrait phone canvas cannot fit a wide room at
+eye level — the width-fitting camera retreated until fog ate the scene
+(observed in a screenshot). The framing now blends two compositions by aspect
+ratio: landscape looks straight in and backs off; portrait moves closer and
+higher and tilts down so the rows spread vertically. Locating an item pulses
+the container in place instead of flying the camera.
+
+### D31 — Slot markers are corner brackets, selection is an outline
+
+**Why:** the old dim footprints read as rectangles of nothing on the new rug,
+and the translucent "ghost" selection material looked cheap against the room.
+Empty slots are now floor-tape corner brackets with a small plus — stage marks
+on a technical drawing — and selection is an accent edge outline plus a flat
+stage mark under the container.
+
+### D32 — Trip screen is a fixed viewport, not a page
+
+**Direction:** "everything should fit in the screen, no scrolling."
+**Decided:** the trip screen is header → traveller strip → room → drawer, the
+room absorbing all remaining height. The traveller's edit/remove actions moved
+off the screen into a ⋯ menu next to the tab strip. Lists (drawer, fallback
+luggage list, trips) scroll inside their own regions only.
+
+### D33 — B612 replaces Space Grotesk / JetBrains Mono
+
+**Direction:** "airport terminal inspired" type.
+**Why B612:** true airport signage faces (Frutiger, DIN) are not
+self-hostable; B612 was commissioned by Airbus for cockpit displays and ships
+on Fontsource, satisfying C1. It carries only 400/700, so `.u-label` moved
+from 500 to 700 — bolder, more departure-board.
+
+### D34 — Light theme via `data-theme`, applied before first paint
+
+**Decided:** the three brand colours swap roles (paper ground, ink text) under
+`:root[data-theme='light']`; every component already read `--app-*` tokens so
+no component changed for theming. An inline script in `index.html` applies the
+stored choice (or system preference) before first paint to avoid a flash; the
+toggle on the Trips screen persists to `localStorage` and updates
+`theme-color` so the browser chrome follows.
+
+### D35 — Swipe-left-to-delete on item rows
+
+**Direction:** the app should behave like an app — "swipe left to make a red
+trashcan delete button appear".
+**Decided:** `ItemRow` owns a pointer-drag that reveals a 72px delete shelf,
+with vertical-intent detection so list scrolling is untouched, click
+suppression after a drag, and undo on the resulting toast. Deleting items had
+no UI at all before this — the swipe is the only entry point, matching phone
+convention. Group headers in the drawer needed `z-10` because the swipeable
+rows are positioned and painted over the pinned header (caught in a
+screenshot).
+
+### D36 — `repo` timestamps are strictly monotonic
+
+**Found:** two travellers created in the same millisecond tied on `createdAt`,
+so `sortBy('createdAt')` fell back to primary-key order — random UUIDs — and
+the tab strip reshuffled. Caught by a flaking tablist test.
+**Decided:** `defaultDeps.now` never returns the same value twice; ties get
+`last + 1`. This is the cause D26 half-fixed: the field existed, but equal
+values still reshuffled.

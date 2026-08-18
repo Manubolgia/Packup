@@ -48,7 +48,7 @@ async function openAddSheet(kindLabel: RegExp) {
  */
 function findCard(label: string) {
   return screen.findByRole('button', {
-    name: new RegExp(`^${label}, \\d+ items?, \\d+ percent full$`, 'i'),
+    name: new RegExp(`^${label}, \\d+ items?, \\d+ packed$`, 'i'),
   });
 }
 
@@ -61,11 +61,6 @@ describe('adding luggage', () => {
     await userEvent.click(within(sheet).getByRole('button', { name: /^add$/i }));
 
     expect(await findCard('Big black Samsonite')).toBeInTheDocument();
-    // The card states its fill against the hardshell-large default of 120.
-    expect(screen.getByRole('progressbar', { name: /big black samsonite fill/i })).toHaveAttribute(
-      'aria-valuemax',
-      '120',
-    );
   });
 
   it('opens on the kind whose slot was tapped', async () => {
@@ -138,7 +133,7 @@ describe('container caps (C6)', () => {
 });
 
 describe('editing and deleting', () => {
-  it('edits a container label and capacity', async () => {
+  it('edits a container label', async () => {
     const { traveller } = await setup();
     const added = await repo.addContainer(traveller.id, {
       kind: 'bag',
@@ -157,20 +152,9 @@ describe('editing and deleting', () => {
     const label = within(sheet).getByLabelText(/label/i);
     await userEvent.clear(label);
     await userEvent.type(label, 'New name');
-    const capacity = within(sheet).getByLabelText(/capacity/i);
-    await userEvent.clear(capacity);
-    await userEvent.type(capacity, '55');
     await userEvent.click(within(sheet).getByRole('button', { name: /save/i }));
 
     await findCard('New name');
-    // The fill readout is built from separate {value}/{max} nodes, so match the
-    // progressbar's own value instead of its rendered text.
-    await waitFor(() =>
-      expect(screen.getByRole('progressbar', { name: /new name fill/i })).toHaveAttribute(
-        'aria-valuemax',
-        '55',
-      ),
-    );
   });
 
   it('deleting a container unassigns its items and undo restores them', async () => {

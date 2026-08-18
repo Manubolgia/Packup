@@ -19,8 +19,20 @@ export interface RepoDeps {
   uuid: () => UUID;
 }
 
+/**
+ * Strictly monotonic: two rows written in the same millisecond must not tie on
+ * createdAt, or every createdAt-ordered read (traveller tabs) falls back to
+ * primary-key order — i.e. random UUIDs — and the UI reshuffles.
+ */
+let lastNow = 0;
+function monotonicNow(): number {
+  const t = Date.now();
+  lastNow = t > lastNow ? t : lastNow + 1;
+  return lastNow;
+}
+
 export const defaultDeps: RepoDeps = {
-  now: () => Date.now(),
+  now: monotonicNow,
   uuid: () =>
     typeof crypto !== 'undefined' && 'randomUUID' in crypto
       ? crypto.randomUUID()

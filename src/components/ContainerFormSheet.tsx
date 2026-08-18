@@ -8,7 +8,6 @@ import {
   subtypesForKind,
 } from '@/domain/catalog';
 import { CONTAINER_CAPS, containersOfKind } from '@/domain/rules';
-import { DEFAULT_CAPACITY } from '@/domain/volume';
 import { IconCheck, IconForKind } from './icons/Icon';
 import { Button } from './ui/Button';
 import { Field, Input } from './ui/Field';
@@ -21,7 +20,6 @@ export interface ContainerFormValues {
   subtype: ContainerSubtype;
   label: string;
   colorHex: string;
-  capacityUnits: number;
   /** '' means top-level; otherwise the id of the suitcase/bag holding it. */
   parentContainerId: string;
 }
@@ -49,9 +47,6 @@ export function ContainerFormSheet({
   onClose,
 }: ContainerFormSheetProps) {
   const [values, setValues] = useState<ContainerFormValues>(() => defaults('suitcase'));
-  /** Set once the user edits capacity, so the subtype default stops overwriting it. */
-  const [capacityTouched, setCapacityTouched] = useState(false);
-  const [capacityText, setCapacityText] = useState('');
 
   const remaining = useMemo(() => {
     const counts = {} as Record<ContainerKind, number>;
@@ -66,17 +61,14 @@ export function ContainerFormSheet({
 
   useEffect(() => {
     if (!open) return;
-    setCapacityTouched(false);
     if (container) {
       setValues({
         kind: container.kind,
         subtype: container.subtype,
         label: container.label,
         colorHex: container.colorHex,
-        capacityUnits: container.capacityUnits,
         parentContainerId: container.parentContainerId ?? '',
       });
-      setCapacityText(String(container.capacityUnits));
       return;
     }
     // The slot the user tapped wins; otherwise open on the first kind that
@@ -85,9 +77,7 @@ export function ContainerFormSheet({
       initialKind && remaining[initialKind] > 0
         ? initialKind
         : (KINDS.find((k) => remaining[k] > 0) ?? 'suitcase');
-    const next = defaults(preferred);
-    setValues(next);
-    setCapacityText(String(next.capacityUnits));
+    setValues(defaults(preferred));
     // `remaining` is deliberately read but not depended on: it changes identity
     // on every parent render, and would reset the form mid-edit.
   }, [open, container, initialKind]);
@@ -110,7 +100,6 @@ export function ContainerFormSheet({
   function selectKind(kind: ContainerKind) {
     if (remaining[kind] <= 0) return;
     const first = subtypesForKind(kind)[0]!;
-    if (!capacityTouched) setCapacityText(String(DEFAULT_CAPACITY[first.subtype]));
     setValues((v) => ({
       ...v,
       kind,
@@ -121,7 +110,6 @@ export function ContainerFormSheet({
   }
 
   function selectSubtype(subtype: ContainerSubtype) {
-    if (!capacityTouched) setCapacityText(String(DEFAULT_CAPACITY[subtype]));
     setValues((v) => ({ ...v, subtype }));
   }
 
@@ -130,7 +118,6 @@ export function ContainerFormSheet({
     onSubmit({
       ...values,
       label: values.label.trim() || spec.placeholder,
-      capacityUnits: clampCapacity(capacityText),
     });
   }
 
@@ -225,9 +212,6 @@ export function ContainerFormSheet({
                   ].join(' ')}
                 >
                   <span className="u-label text-[0.5625rem] leading-tight">{s.label}</span>
-                  <span className="u-data shrink-0 text-[0.5625rem] text-[var(--app-faint)]">
-                    {DEFAULT_CAPACITY[s.subtype]}
-                  </span>
                 </button>
               );
             })}
@@ -272,27 +256,6 @@ export function ContainerFormSheet({
           </div>
         </fieldset>
 
-        <Field label="Capacity" hint="Volume units. Small item 1, medium 3, large 8.">
-          {({ id, describedBy }) => (
-            <Input
-              id={id}
-              type="number"
-              inputMode="numeric"
-              min={1}
-              // Held as a raw string while editing: clamping on every keystroke
-              // would rewrite an emptied field to "1", so the next digit typed
-              // would append to it instead of replacing it.
-              value={capacityText}
-              aria-describedby={describedBy}
-              onChange={(e) => {
-                setCapacityTouched(true);
-                setCapacityText(e.target.value);
-              }}
-              onBlur={() => setCapacityText(String(clampCapacity(capacityText)))}
-            />
-          )}
-        </Field>
-
         {/* Only a pouch nests, and only inside a top-level suitcase or bag. */}
         {values.kind === 'pouch' && parentOptions.length > 0 ? (
           <Field label="Packed inside">
@@ -320,12 +283,6 @@ export function ContainerFormSheet({
   );
 }
 
-/** An emptied or nonsense field falls back to 1 rather than 0 or NaN. */
-function clampCapacity(text: string): number {
-  const parsed = Math.floor(Number(text));
-  return Number.isFinite(parsed) && parsed >= 1 ? parsed : 1;
-}
-
 function defaults(kind: ContainerKind): ContainerFormValues {
   const first = subtypesForKind(kind)[0]!;
   return {
@@ -333,7 +290,6 @@ function defaults(kind: ContainerKind): ContainerFormValues {
     subtype: first.subtype,
     label: '',
     colorHex: CONTAINER_COLORS[0],
-    capacityUnits: DEFAULT_CAPACITY[first.subtype],
     parentContainerId: '',
   };
 }

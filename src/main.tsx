@@ -7,12 +7,11 @@ import { UpdateToast } from '@/components/UpdateToast';
 import { Toaster } from '@/components/ui/Toaster';
 // Self-hosted so the app never touches a font CDN at runtime (C1). Latin
 // subsets only: the full set ships Vietnamese/Cyrillic faces the UI never uses,
-// and every one of them would be precached for offline.
-import '@fontsource/space-grotesk/latin-400.css';
-import '@fontsource/space-grotesk/latin-500.css';
-import '@fontsource/space-grotesk/latin-700.css';
-import '@fontsource/jetbrains-mono/latin-400.css';
-import '@fontsource/jetbrains-mono/latin-500.css';
+// and every one of them would be precached for offline. B612 ships 400/700.
+import '@fontsource/b612/latin-400.css';
+import '@fontsource/b612/latin-700.css';
+import '@fontsource/b612-mono/latin-400.css';
+import '@fontsource/b612-mono/latin-700.css';
 import './index.css';
 
 const rootEl = document.getElementById('root');

@@ -72,7 +72,7 @@ export function Sheet({ open, title, onClose, children, footer }: SheetProps) {
         aria-label="Close"
         tabIndex={-1}
         onClick={onClose}
-        className="absolute inset-0 bg-[rgb(0_0_0/0.78)] motion-safe:animate-[sheet-fade_var(--dur)_var(--ease)]"
+        className="no-press absolute inset-0 bg-[var(--app-scrim)] motion-safe:animate-[sheet-fade_var(--dur-travel)_var(--ease)]"
       />
       <div
         ref={panelRef}
@@ -82,7 +82,7 @@ export function Sheet({ open, title, onClose, children, footer }: SheetProps) {
         tabIndex={-1}
         className={[
           'relative flex max-h-[86dvh] flex-col border-t border-[var(--app-border-strong)]',
-          'bg-[var(--app-surface)] motion-safe:animate-[sheet-rise_var(--dur)_var(--ease)]',
+          'bg-[var(--app-surface)] motion-safe:animate-[sheet-rise_var(--dur-travel)_var(--ease)]',
         ].join(' ')}
         style={{
           paddingRight: 'var(--safe-right)',

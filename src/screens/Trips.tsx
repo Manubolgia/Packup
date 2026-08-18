@@ -12,7 +12,8 @@ import {
 import { useTripProgress, useTravellersByTrip, useTrips } from '@/data/hooks';
 import { platform } from '@/platform';
 import { useUiStore } from '@/store/ui';
-import { IconImport, IconPlus, IconSuitcase } from '@/components/icons/Icon';
+import { useTheme } from '@/app/theme';
+import { IconImport, IconMoon, IconPlus, IconSuitcase, IconSun } from '@/components/icons/Icon';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { TripCard } from '@/components/TripCard';
@@ -39,6 +40,7 @@ export function Trips() {
   const progress = useTripProgress();
   const travellersByTrip = useTravellersByTrip();
   const pushToast = useUiStore((s) => s.pushToast);
+  const [theme, toggleTheme] = useTheme();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Trip | undefined>(undefined);
@@ -152,6 +154,14 @@ export function Trips() {
           </p>
         </div>
         <div className="flex gap-2">
+          <button
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            onClick={toggleTheme}
+            className="grid h-11 w-11 place-items-center border border-[var(--app-border-strong)] text-[var(--app-muted)] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:text-[var(--app-fg)]"
+          >
+            {theme === 'dark' ? <IconSun size={20} /> : <IconMoon size={20} />}
+          </button>
           <button
             aria-label="Import a backup"
             title="Import a backup"

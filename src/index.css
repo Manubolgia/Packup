@@ -6,7 +6,9 @@
 
 /* Design tokens. Theming is this block and nothing else.
    Three colours only: main ground, secondary ink, accent. Everything else is
-   an opacity step of one of them. No gradients, no border radius anywhere. */
+   an opacity step of one of them. No gradients, no border radius anywhere.
+   B612 was drawn by Airbus for cockpit instruments — the closest self-hosted
+   voice to airport signage. */
 @theme {
   --color-main: #14171a;
   --color-main-raised: #1f2429;
@@ -17,8 +19,8 @@
   /* Status uses the accent and one derived red; never a fourth hue for chrome. */
   --color-danger: #c2401f;
 
-  --font-display: 'Space Grotesk', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+  --font-display: 'B612', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'B612 Mono', ui-monospace, 'SFMono-Regular', monospace;
 
   /* Square by decree. Overriding the scale means a stray `rounded-*` class
      from muscle memory still renders square. */
@@ -39,22 +41,45 @@
   --safe-bottom: max(env(safe-area-inset-bottom), 16px);
   --safe-left: max(env(safe-area-inset-left), 16px);
 
+  /* Dark is the default; index.html applies data-theme before first paint. */
+  color-scheme: dark;
   --app-bg: var(--color-main);
   --app-fg: var(--color-secondary);
   --app-surface: var(--color-main-raised);
   --app-sunken: var(--color-main-sunken);
   --app-accent: var(--color-accent);
   --app-danger: var(--color-danger);
+  /* Ink sitting ON the accent (buttons): always the dark ground. */
+  --app-on-accent: var(--color-main);
 
   /* Hairlines and muted text are the ink at reduced opacity, not new greys. */
   --app-border: rgb(242 242 240 / 0.14);
   --app-border-strong: rgb(242 242 240 / 0.28);
   --app-muted: rgb(242 242 240 / 0.55);
   --app-faint: rgb(242 242 240 / 0.32);
+  --app-scrim: rgb(0 0 0 / 0.78);
 
-  /* One duration and one curve for the whole app. */
+  /* One duration and one curve for the whole app; one longer pair for
+     things that travel (sheets, drawer). */
   --ease: cubic-bezier(0.2, 0, 0, 1);
-  --dur: 180ms;
+  --dur: 160ms;
+  --dur-travel: 280ms;
+}
+
+/* Light: the same three colours with ground and ink swapped. */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --app-bg: var(--color-secondary);
+  --app-fg: var(--color-main);
+  --app-surface: #fbfbfa;
+  --app-sunken: #e6e6e2;
+  --app-on-accent: var(--color-main);
+
+  --app-border: rgb(20 23 26 / 0.16);
+  --app-border-strong: rgb(20 23 26 / 0.32);
+  --app-muted: rgb(20 23 26 / 0.58);
+  --app-faint: rgb(20 23 26 / 0.36);
+  --app-scrim: rgb(20 23 26 / 0.45);
 }
 
 html,
@@ -68,21 +93,24 @@ body {
   background: var(--app-bg);
   color: var(--app-fg);
   font-family: var(--font-display);
-  font-feature-settings: 'ss01';
   -webkit-font-smoothing: antialiased;
   /* The app manages its own scroll regions; the page itself never bounces. */
   overscroll-behavior: none;
+  transition:
+    background-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
 }
 
-/* Signage voice: headings and labels are tracked-out uppercase. */
+/* Signage voice: headings and labels are tracked-out uppercase, bold like a
+   departure board. B612 ships 400/700 only. */
 .u-label {
   font-family: var(--font-display);
-  font-weight: 500;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.1em;
 }
 
-/* Counts, dates, capacities — anything the eye scans as a column. */
+/* Counts, dates, gate numbers — anything the eye scans as a column. */
 .u-data {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -96,6 +124,17 @@ button,
   touch-action: manipulation;
 }
 
+/* Every real button gives under the finger. Backdrops and other full-bleed
+   hit areas opt out with .no-press. */
+button:not(:disabled):not(.no-press) {
+  transition-property: transform;
+  transition-duration: var(--dur);
+  transition-timing-function: var(--ease);
+}
+button:not(:disabled):not(.no-press):active {
+  transform: scale(0.96);
+}
+
 /* Keyboard focus is a hard offset outline, never a glow. */
 :focus-visible {
   outline: 2px solid var(--app-accent);
@@ -105,7 +144,7 @@ button,
 /* Motion vocabulary: things arrive from where they live, and never bounce. */
 @keyframes sheet-rise {
   from {
-    transform: translateY(12px);
+    transform: translateY(24px);
     opacity: 0;
   }
 }
@@ -119,6 +158,22 @@ button,
 @keyframes row-in {
   from {
     transform: translateY(6px);
+    opacity: 0;
+  }
+}
+
+/* New things announce themselves once, quietly. */
+@keyframes pop-in {
+  from {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+}
+
+/* The locate breadcrumb drops in from the top of the canvas. */
+@keyframes drop-in {
+  from {
+    transform: translateY(-8px);
     opacity: 0;
   }
 }

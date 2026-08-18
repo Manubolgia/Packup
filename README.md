@@ -26,18 +26,27 @@ deviations from the spec.
 
 ### Measured
 
-Lighthouse mobile against the production build: **performance 96,
-accessibility 100, best-practices 100, SEO 100**. Offline verified in headless
-Chrome — 18 precached entries, app reloads and renders with the network
-disabled, data intact in IndexedDB. 103 tests passing.
+Lighthouse mobile against the M6 production build: **performance 96,
+accessibility 100, best-practices 100, SEO 100** (not yet re-measured after
+the V2 visual overhaul). Offline verified in headless Chrome — app reloads and
+renders with the network disabled, data intact in IndexedDB. 92 tests passing.
 
 ## Design
 
 One main colour, one secondary, one accent — `#14171A` / `#F2F2F0` / `#E8A317`,
-plus a single derived red for destructive and over-capacity states. No
-gradients, no rounded corners, no emoji: icons are line-only SVGs on a 24-unit
-grid with a 1.5 stroke, drawn like a parts diagram. Space Grotesk for signage,
-JetBrains Mono for data, both self-hosted. All of it lives in `src/index.css`.
+plus a single derived red for destructive actions. Light and dark themes share
+those three colours with ground and ink swapped; the toggle lives on the Trips
+screen and the choice persists. No gradients, no rounded corners, no emoji:
+icons are line-only SVGs on a 24-unit grid with a 1.5 stroke, drawn like a
+parts diagram. B612 for signage and B612 Mono for data — Airbus's cockpit
+typefaces, the closest self-hosted voice to airport signage. All of it lives in
+`src/index.css`.
+
+The 3D view is a fixed front-facing hotel room, drawn entirely from primitives
+and canvas textures — no orbiting, no fetched assets. Luggage pops into its
+floor-taped slot as it is added. ACES filmic tone mapping, a procedural
+environment map, soft shadows and a key/fill/rim light rig do the rendering
+work; the camera composition adapts between portrait and landscape.
 
 ## Requirements
 

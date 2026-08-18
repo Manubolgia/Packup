@@ -94,7 +94,7 @@ function drawerGroups(drawer: HTMLElement): (string | null)[] {
 async function openContainerSheet(label: string) {
   await userEvent.click(
     await screen.findByRole('button', {
-      name: new RegExp(`^${label}, \\d+ items?, \\d+ percent full$`, 'i'),
+      name: new RegExp(`^${label}, \\d+ items?, \\d+ packed$`, 'i'),
     }),
   );
 }
@@ -253,7 +253,7 @@ describe('the container sheet', () => {
     });
   });
 
-  it('shows the nested pouch and the fill state', async () => {
+  it('shows the nested pouch strip', async () => {
     await setup();
 
     await openContainerSheet('Big suitcase');
@@ -274,46 +274,5 @@ describe('the container sheet', () => {
       const jeans = (await repo.listItems(trip.id)).find((i) => i.name === 'Jeans');
       expect(jeans?.packed).toBe(true);
     });
-  });
-});
-
-describe('over-capacity is a warning, never a block (§5)', () => {
-  it('accepts items past capacity and says so', async () => {
-    const { trip, suitcase } = await setup();
-    // 120-unit case, already holding Jeans (1u): 20 large coats = 160 units,
-    // so 161/120 = 134% — past the 120% red line (FILL_RED).
-    await repo.addItem(trip.id, {
-      name: 'Winter coat',
-      category: 'Clothing',
-      size: 'large',
-      quantity: 20,
-      containerId: suitcase.id,
-    });
-
-    await openContainerSheet('Big suitcase');
-    const sheet = await screen.findByRole('dialog', { name: /big suitcase/i });
-
-    expect(within(sheet).getByText(/won’t fit/i)).toBeInTheDocument();
-    // The item is still there: the rule was not enforced, only reported.
-    const items = await repo.listItems(trip.id);
-    expect(items.find((i) => i.name === 'Winter coat')?.containerId).toBe(suitcase.id);
-  });
-
-  it('warns in amber between 100% and 120% full', async () => {
-    const { trip, suitcase } = await setup();
-    // 15 large = 120 units, plus Jeans (1u) = 121/120 = 101%: amber, not red.
-    await repo.addItem(trip.id, {
-      name: 'Jumper',
-      category: 'Clothing',
-      size: 'large',
-      quantity: 15,
-      containerId: suitcase.id,
-    });
-
-    await openContainerSheet('Big suitcase');
-    const sheet = await screen.findByRole('dialog', { name: /big suitcase/i });
-
-    expect(within(sheet).getByText(/full — anything more is a squeeze/i)).toBeInTheDocument();
-    expect(within(sheet).queryByText(/won’t fit/i)).not.toBeInTheDocument();
   });
 });

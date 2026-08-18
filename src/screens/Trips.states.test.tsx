@@ -85,7 +85,7 @@ describe('missing trip', () => {
 });
 
 describe('accessibility contract', () => {
-  it('gives every container a spoken label with its fill state (§5)', async () => {
+  it('gives every container a spoken label with its packed state (§5)', async () => {
     const trip = await repo.createTrip({ name: 'A11y trip' });
     const traveller = await repo.addTraveller(trip.id, {
       name: 'Me',
@@ -106,9 +106,9 @@ describe('accessibility contract', () => {
       { route: `/trip/${trip.id}` },
     );
 
-    // "Cabin case, 0 items, 0 percent full" — readable without seeing the mesh.
+    // "Cabin case, 0 items, 0 packed" — readable without seeing the mesh.
     expect(
-      await screen.findByRole('button', { name: /^cabin case, 0 items, 0 percent full$/i }),
+      await screen.findByRole('button', { name: /^cabin case, 0 items, 0 packed$/i }),
     ).toBeInTheDocument();
   });
 
@@ -134,7 +134,7 @@ describe('accessibility contract', () => {
     );
 
     await userEvent.click(
-      await screen.findByRole('button', { name: /^day pack, 0 items, 0 percent full$/i }),
+      await screen.findByRole('button', { name: /^day pack, 0 items, 0 packed$/i }),
     );
 
     await waitFor(() => {

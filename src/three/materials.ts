@@ -5,118 +5,159 @@ import * as THREE from 'three';
  * reuse one material instance, so 10 containers cost a handful of programs
  * rather than 10 uploads.
  *
- * The cache lives for the page's lifetime, which is correct — the palette is a
- * fixed set of six colours, so it cannot grow without bound.
+ * Everything is MeshStandardMaterial so the room environment map and the
+ * key/fill/rim rig actually read on the surfaces — Lambert was the old flat
+ * look. The caches live for the page's lifetime, which is correct: the palettes
+ * are fixed sets, so they cannot grow without bound.
  */
-const shellCache = new Map<string, THREE.MeshLambertMaterial>();
 
-export function shellMaterial(colorHex: string): THREE.MeshLambertMaterial {
-  const existing = shellCache.get(colorHex);
+/** Hardshells are glossy plastic; fabric luggage is matte. */
+export type Finish = 'hard' | 'soft';
+
+const shellCache = new Map<string, THREE.MeshStandardMaterial>();
+
+export function shellMaterial(
+  colorHex: string,
+  finish: Finish = 'soft',
+): THREE.MeshStandardMaterial {
+  const key = `${colorHex}:${finish}`;
+  const existing = shellCache.get(key);
   if (existing) return existing;
-  // Lambert, not Standard: no metalness/roughness maps in this scene, and it
-  // is markedly cheaper on the mid-range Android the budget targets.
-  const material = new THREE.MeshLambertMaterial({ color: colorHex });
-  shellCache.set(colorHex, material);
-  return material;
-}
-
-/** The see-through version used while a container is selected (§5). */
-const ghostCache = new Map<string, THREE.MeshLambertMaterial>();
-
-export function ghostMaterial(colorHex: string): THREE.MeshLambertMaterial {
-  const existing = ghostCache.get(colorHex);
-  if (existing) return existing;
-  const material = new THREE.MeshLambertMaterial({
+  const material = new THREE.MeshStandardMaterial({
     color: colorHex,
-    transparent: true,
-    opacity: 0.35,
-    depthWrite: false,
+    roughness: finish === 'hard' ? 0.32 : 0.82,
+    metalness: finish === 'hard' ? 0.12 : 0.02,
   });
-  ghostCache.set(colorHex, material);
+  shellCache.set(key, material);
   return material;
 }
 
-/** Translucent blocks representing used volume, in the traveller's accent. */
-const fillCache = new Map<string, THREE.MeshLambertMaterial>();
+/** Room props: cartoon-flat colour, no shine. One instance per (hex, rough). */
+const matteCache = new Map<string, THREE.MeshStandardMaterial>();
 
-export function fillMaterial(accentHex: string): THREE.MeshLambertMaterial {
-  const existing = fillCache.get(accentHex);
+export function matteMaterial(colorHex: string, roughness = 0.92): THREE.MeshStandardMaterial {
+  const key = `${colorHex}:${roughness}`;
+  const existing = matteCache.get(key);
   if (existing) return existing;
-  const material = new THREE.MeshLambertMaterial({
-    color: accentHex,
-    transparent: true,
-    opacity: 0.8,
-  });
-  fillCache.set(accentHex, material);
+  const material = new THREE.MeshStandardMaterial({ color: colorHex, roughness, metalness: 0 });
+  matteCache.set(key, material);
   return material;
 }
 
 /** Dark trim shared by wheels, handles, zips — always the same colour. */
-export const TRIM_COLOR = '#0E1113';
+export const TRIM_COLOR = '#23272C';
 
-let trimMaterialInstance: THREE.MeshLambertMaterial | undefined;
-export function trimMaterial(): THREE.MeshLambertMaterial {
-  trimMaterialInstance ??= new THREE.MeshLambertMaterial({ color: TRIM_COLOR });
+let trimMaterialInstance: THREE.MeshStandardMaterial | undefined;
+export function trimMaterial(): THREE.MeshStandardMaterial {
+  trimMaterialInstance ??= new THREE.MeshStandardMaterial({
+    color: TRIM_COLOR,
+    roughness: 0.5,
+    metalness: 0.2,
+  });
   return trimMaterialInstance;
 }
 
 /**
- * Faint ground footprint for an empty slot's "add here" placeholder. Flat and
- * dim on purpose: it must read as absence, never compete with real luggage.
- * DoubleSide so it stays visible from any permitted camera angle.
+ * Faint corner brackets marking an empty slot's footprint — drawn like chalk
+ * marks on the floor plan. Must read as absence, never compete with luggage.
  */
 let slotMaterialInstance: THREE.MeshBasicMaterial | undefined;
 export function slotMaterial(): THREE.MeshBasicMaterial {
   slotMaterialInstance ??= new THREE.MeshBasicMaterial({
-    color: '#F2F2F0',
+    color: '#3A2E23',
     transparent: true,
-    opacity: 0.07,
+    opacity: 0.34,
     side: THREE.DoubleSide,
   });
   return slotMaterialInstance;
 }
 
+/** Accent outline for the selected container, pulsed while locating (§4.3). */
+const outlineCache = new Map<string, THREE.LineBasicMaterial>();
+export function outlineMaterial(colorHex: string): THREE.LineBasicMaterial {
+  const existing = outlineCache.get(colorHex);
+  if (existing) return existing;
+  const material = new THREE.LineBasicMaterial({ color: colorHex, transparent: true, opacity: 1 });
+  outlineCache.set(colorHex, material);
+  return material;
+}
+
 /**
- * The ground: light enough under the luggage to separate dark shells from it,
- * fading to the page background at the rim so the plane has no visible edge
- * cutting across the frame. Drawn as a canvas-generated radial gradient — no
- * asset to fetch (C4), and one texture shared by the whole scene.
+ * The wooden floor: planks drawn into a canvas at runtime — no fetched asset
+ * (C4), one texture shared by the whole room. Warm and slightly irregular so
+ * the room reads hand-drawn rather than rendered.
  */
-let groundMaterialInstance: THREE.MeshLambertMaterial | undefined;
+let floorMaterialInstance: THREE.MeshStandardMaterial | undefined;
 
-export function groundMaterial(): THREE.MeshLambertMaterial {
-  if (groundMaterialInstance) return groundMaterialInstance;
+export function floorMaterial(): THREE.MeshStandardMaterial {
+  if (floorMaterialInstance) return floorMaterialInstance;
 
-  const size = 256;
+  const size = 512;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d')!;
 
-  const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  gradient.addColorStop(0, '#454C55');
-  gradient.addColorStop(0.42, '#3A4149');
-  gradient.addColorStop(1, '#14171A');
-  ctx.fillStyle = gradient;
+  ctx.fillStyle = '#B9895C';
   ctx.fillRect(0, 0, size, size);
+
+  // Planks run along X (canvas rows). Deterministic pseudo-random tints so
+  // every load draws the same floor.
+  const plank = size / 8;
+  let seed = 7;
+  const rand = () => {
+    seed = (seed * 16807) % 2147483647;
+    return seed / 2147483647;
+  };
+  for (let row = 0; row < 8; row++) {
+    const tint = 0.92 + rand() * 0.16;
+    ctx.fillStyle = `rgb(${Math.round(185 * tint)}, ${Math.round(137 * tint)}, ${Math.round(92 * tint)})`;
+    ctx.fillRect(0, row * plank, size, plank - 2);
+    // Butt joints: one seam per plank at a jittered position.
+    ctx.fillStyle = 'rgba(90, 62, 40, 0.55)';
+    ctx.fillRect(Math.floor(rand() * size), row * plank, 3, plank - 2);
+    // A few grain streaks.
+    ctx.strokeStyle = 'rgba(120, 84, 52, 0.25)';
+    ctx.lineWidth = 1.5;
+    for (let g = 0; g < 3; g++) {
+      const y = row * plank + 8 + rand() * (plank - 16);
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(size, y + (rand() - 0.5) * 6);
+      ctx.stroke();
+    }
+    // Gap between planks.
+    ctx.fillStyle = 'rgba(70, 46, 28, 0.8)';
+    ctx.fillRect(0, row * plank + plank - 2, size, 2);
+  }
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
-  groundMaterialInstance = new THREE.MeshLambertMaterial({ map: texture });
-  return groundMaterialInstance;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(2, 2);
+  texture.anisotropy = 4;
+  floorMaterialInstance = new THREE.MeshStandardMaterial({
+    map: texture,
+    roughness: 0.85,
+    metalness: 0,
+  });
+  return floorMaterialInstance;
 }
 
 /** Test/HMR hook — the caches are module-level and otherwise permanent. */
 export function disposeMaterials(): void {
-  for (const cache of [shellCache, ghostCache, fillCache]) {
+  for (const cache of [shellCache, matteCache]) {
     for (const material of cache.values()) material.dispose();
     cache.clear();
   }
+  for (const material of outlineCache.values()) material.dispose();
+  outlineCache.clear();
   trimMaterialInstance?.dispose();
   trimMaterialInstance = undefined;
   slotMaterialInstance?.dispose();
   slotMaterialInstance = undefined;
-  groundMaterialInstance?.map?.dispose();
-  groundMaterialInstance?.dispose();
-  groundMaterialInstance = undefined;
+  floorMaterialInstance?.map?.dispose();
+  floorMaterialInstance?.dispose();
+  floorMaterialInstance = undefined;
 }

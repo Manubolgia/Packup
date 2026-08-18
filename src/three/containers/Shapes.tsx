@@ -1,23 +1,29 @@
 import { RoundedBox } from '@react-three/drei';
 import type { Container } from '@/domain/types';
 import { KIND_SIZE } from '../layout';
-import { trimMaterial } from '../materials';
-import type * as THREE from 'three';
+import { shellMaterial, trimMaterial, type Finish } from '../materials';
 
 /**
  * Procedural luggage (C4, §5). Every shape is primitives — no loaded models —
  * so the bundle carries no geometry and nothing is fetched at runtime.
  *
- * Each shape takes the resolved material so selected/unselected variants share
- * one cached instance rather than allocating per mesh.
+ * Materials come from the shared caches: hardshells read glossy, fabric reads
+ * matte, and containers of one colour+finish share a single instance.
  */
 export interface ShapeProps {
   container: Container;
-  material: THREE.Material;
 }
 
-export function SuitcaseShape({ container, material }: ShapeProps) {
+/** Which subtypes are rigid plastic rather than fabric. */
+function finishFor(container: Container): Finish {
+  return container.subtype === 'hardshell-large' || container.subtype === 'hardshell-cabin'
+    ? 'hard'
+    : 'soft';
+}
+
+export function SuitcaseShape({ container }: ShapeProps) {
   const [hx, hy, hz] = KIND_SIZE.suitcase;
+  const material = shellMaterial(container.colorHex, finishFor(container));
   // A duffel is softer and squatter than a hardshell.
   const duffel = container.subtype === 'duffel';
   const radius = duffel ? 0.16 : 0.06;
@@ -30,6 +36,7 @@ export function SuitcaseShape({ container, material }: ShapeProps) {
         radius={radius}
         smoothness={2}
         material={material}
+        castShadow
       />
       {/* Inset front panel: a slightly smaller box proud of the face. */}
       <RoundedBox
@@ -42,7 +49,7 @@ export function SuitcaseShape({ container, material }: ShapeProps) {
       {!duffel ? (
         <>
           {/* Telescoping handle */}
-          <mesh position={[0, height + 0.11, -hz * 0.4]} material={trimMaterial()}>
+          <mesh position={[0, height + 0.11, -hz * 0.4]} material={trimMaterial()} castShadow>
             <boxGeometry args={[hx * 0.9, 0.22, 0.03]} />
           </mesh>
           {/* Wheels, one pair, at the base corners */}
@@ -63,6 +70,7 @@ export function SuitcaseShape({ container, material }: ShapeProps) {
           position={[0, height * 0.95, 0]}
           rotation={[Math.PI / 2, 0, 0]}
           material={trimMaterial()}
+          castShadow
         >
           <torusGeometry args={[hx * 0.42, 0.022, 6, 16, Math.PI]} />
         </mesh>
@@ -71,8 +79,9 @@ export function SuitcaseShape({ container, material }: ShapeProps) {
   );
 }
 
-export function BagShape({ container, material }: ShapeProps) {
+export function BagShape({ container }: ShapeProps) {
   const [hx, hy, hz] = KIND_SIZE.bag;
+  const material = shellMaterial(container.colorHex, 'soft');
   const tote = container.subtype === 'tote';
   const flat = container.subtype === 'laptop-bag';
   const height = flat ? hy * 0.72 : hy;
@@ -85,6 +94,7 @@ export function BagShape({ container, material }: ShapeProps) {
         radius={tote ? 0.04 : 0.1}
         smoothness={2}
         material={material}
+        castShadow
       />
       {tote || flat ? (
         // Tote/laptop bag: a rigid handle arc over the opening.
@@ -92,6 +102,7 @@ export function BagShape({ container, material }: ShapeProps) {
           position={[0, height + 0.07, 0]}
           rotation={[Math.PI / 2, 0, 0]}
           material={trimMaterial()}
+          castShadow
         >
           <torusGeometry args={[0.12, 0.018, 6, 16, Math.PI]} />
         </mesh>
@@ -112,8 +123,9 @@ export function BagShape({ container, material }: ShapeProps) {
   );
 }
 
-export function PouchShape({ material }: ShapeProps) {
+export function PouchShape({ container }: ShapeProps) {
   const [hx, hy, hz] = KIND_SIZE.pouch;
+  const material = shellMaterial(container.colorHex, 'soft');
   return (
     <group>
       <RoundedBox
@@ -121,6 +133,7 @@ export function PouchShape({ material }: ShapeProps) {
         radius={0.05}
         smoothness={2}
         material={material}
+        castShadow
       />
       {/* Zip line: a thin stretched box across the top face. */}
       <mesh position={[0, hy * 0.72, 0]} material={trimMaterial()}>
@@ -130,15 +143,20 @@ export function PouchShape({ material }: ShapeProps) {
   );
 }
 
-export function PersonShape({ material }: ShapeProps) {
+export function PersonShape({ container }: ShapeProps) {
   const [hx, hy] = KIND_SIZE.person;
+  const material = shellMaterial(container.colorHex, 'soft');
+  // The capsule (length + two end caps) is shorter than the slot's nominal
+  // height; sink it so the feet actually touch the floor instead of hovering.
+  const capsuleHalf = (hy * 0.9) / 2 + hx * 0.78;
+  const drop = hy - capsuleHalf;
   return (
-    <group>
+    <group position={[0, -drop, 0]}>
       {/* Torso — a capsule, no face (§5). */}
-      <mesh position={[0, 0, 0]} material={material}>
+      <mesh position={[0, 0, 0]} material={material} castShadow>
         <capsuleGeometry args={[hx * 0.78, hy * 0.9, 4, 12]} />
       </mesh>
-      <mesh position={[0, hy * 0.92, 0]} material={material}>
+      <mesh position={[0, capsuleHalf + hx * 0.3, 0]} material={material} castShadow>
         <sphereGeometry args={[hx * 0.52, 14, 12]} />
       </mesh>
     </group>

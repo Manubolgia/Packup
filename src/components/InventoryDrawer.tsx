@@ -26,6 +26,7 @@ export interface InventoryDrawerProps {
   onLocate: (item: Item) => void;
   onTogglePacked: (item: Item) => void;
   onMove: (items: readonly Item[]) => void;
+  onDeleteItem: (item: Item) => void;
 }
 
 const FILTERS: { id: DrawerFilter; label: string }[] = [
@@ -58,12 +59,49 @@ export function InventoryDrawer({
   onLocate,
   onTogglePacked,
   onMove,
+  onDeleteItem,
 }: InventoryDrawerProps) {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<DrawerFilter>('all');
   const [flat, setFlat] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const groupRefs = useRef(new Map<string, HTMLElement>());
+  /** Handle drag: swipe up grows the drawer, swipe down shrinks/closes it. */
+  const dragStartY = useRef<number | null>(null);
+  const suppressClick = useRef(false);
+
+  function onHandlePointerDown(e: React.PointerEvent) {
+    dragStartY.current = e.clientY;
+    // Optional call: jsdom (component tests) has no pointer capture.
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  }
+
+  function onHandlePointerUp(e: React.PointerEvent) {
+    const start = dragStartY.current;
+    dragStartY.current = null;
+    if (start === null) return;
+    const dy = e.clientY - start;
+    if (Math.abs(dy) < 30) return; // a tap; let click toggle as usual
+    suppressClick.current = true;
+    if (dy < 0) {
+      // Upward: closed → half → full.
+      if (!open) onToggle();
+      else if (height !== 'full') onSetHeight(height === 'collapsed' ? 'half' : 'full');
+    } else {
+      // Downward: full → half → closed.
+      if (!open) return;
+      if (height === 'full') onSetHeight('half');
+      else onToggle();
+    }
+  }
+
+  function onHandleClick() {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
+    onToggle();
+  }
 
   const selectionMode = selectedIds.size > 0;
 
@@ -134,7 +172,7 @@ export function InventoryDrawer({
     <div
       className={[
         'fixed inset-x-0 bottom-0 z-30 flex flex-col border-t border-[var(--app-border-strong)] bg-[var(--app-bg)]',
-        'transition-[height] duration-[var(--dur)] ease-[var(--ease)]',
+        'transition-[height] duration-[var(--dur-travel)] ease-[var(--ease)]',
         open ? HEIGHT_CLASS[height] : 'h-auto',
       ].join(' ')}
       style={{
@@ -143,12 +181,19 @@ export function InventoryDrawer({
         paddingBottom: open ? 0 : 'var(--safe-bottom)',
       }}
     >
-      {/* The persistent handle: always visible, always the way in and out. */}
+      {/* The persistent handle: always visible, always the way in and out.
+          Tap toggles; dragging it up/down resizes like a native sheet. */}
       <button
-        onClick={onToggle}
+        onClick={onHandleClick}
+        onPointerDown={onHandlePointerDown}
+        onPointerUp={onHandlePointerUp}
         aria-expanded={open}
-        className="flex min-h-11 shrink-0 items-center justify-between gap-3 px-1"
+        className="relative flex min-h-11 shrink-0 touch-none items-center justify-between gap-3 px-1"
       >
+        <span
+          aria-hidden="true"
+          className="absolute top-1 left-1/2 h-[3px] w-8 -translate-x-1/2 bg-[var(--app-border-strong)]"
+        />
         <span className="u-label text-[0.625rem] text-[var(--app-fg)]">Inventory</span>
         <span className="u-data text-[0.625rem] text-[var(--app-muted)]">
           {packedCount}/{items.length} packed
@@ -167,7 +212,7 @@ export function InventoryDrawer({
             <button
               onClick={() => onSetHeight(height === 'full' ? 'half' : 'full')}
               aria-label={height === 'full' ? 'Shrink drawer' : 'Expand drawer'}
-              className="u-label shrink-0 border border-[var(--app-border)] px-2 text-[0.5rem] text-[var(--app-muted)]"
+              className="u-label shrink-0 border border-[var(--app-border)] px-2.5 text-[0.5625rem] text-[var(--app-muted)]"
             >
               {height === 'full' ? 'Less' : 'More'}
             </button>
@@ -180,9 +225,10 @@ export function InventoryDrawer({
                 onClick={() => setFilter(f.id)}
                 aria-pressed={filter === f.id}
                 className={[
-                  'u-label shrink-0 border px-2 py-1.5 text-[0.5rem]',
+                  'u-label shrink-0 border px-2.5 py-2 text-[0.5625rem]',
+                  'transition-colors duration-[var(--dur)] ease-[var(--ease)]',
                   filter === f.id
-                    ? 'border-[var(--app-fg)] text-[var(--app-fg)]'
+                    ? 'border-[var(--app-accent)] bg-[var(--app-surface)] text-[var(--app-fg)]'
                     : 'border-[var(--app-border)] text-[var(--app-muted)]',
                 ].join(' ')}
               >
@@ -192,7 +238,7 @@ export function InventoryDrawer({
             <button
               onClick={() => setFlat((v) => !v)}
               aria-pressed={flat}
-              className="u-label ml-auto shrink-0 border border-[var(--app-border)] px-2 py-1.5 text-[0.5rem] text-[var(--app-muted)]"
+              className="u-label ml-auto shrink-0 border border-[var(--app-border)] px-2.5 py-2 text-[0.5625rem] text-[var(--app-muted)]"
             >
               {flat ? 'Grouped' : 'A–Z'}
             </button>
@@ -234,7 +280,9 @@ export function InventoryDrawer({
                 >
                   <h3
                     className={[
-                      'u-label sticky top-0 bg-[var(--app-bg)] py-1 text-[0.5625rem]',
+                      // z-10: the swipeable rows are positioned and would
+                      // otherwise paint over the pinned header.
+                      'u-label sticky top-0 z-10 bg-[var(--app-bg)] py-1 text-[0.5625rem]',
                       group.id === selectedContainerId
                         ? 'text-[var(--app-accent)]'
                         : 'text-[var(--app-muted)]',
@@ -252,6 +300,7 @@ export function InventoryDrawer({
                       onTap={(i) => (selectionMode ? toggleSelected(i) : onLocate(i))}
                       onLongPress={toggleSelected}
                       onTogglePacked={onTogglePacked}
+                      onDelete={onDeleteItem}
                     />
                   ))}
                 </section>
